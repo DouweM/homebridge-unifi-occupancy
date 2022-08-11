@@ -79,7 +79,7 @@
         {
           "type": "flex",
           "flex-flow": "column",
-          "items": ["unifi.controller", "unifi.site"]
+          "items": ["unifi.controller", "unifi.username"]
         }
       ]
     },
@@ -90,7 +90,7 @@
         {
           "type": "flex",
           "flex-flow": "column",
-          "items": ["unifi.username", "unifi.password"]
+          "items": ["unifi.site", "unifi.password"]
         }
       ]
     },
