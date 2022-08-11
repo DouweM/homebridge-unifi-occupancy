@@ -28,7 +28,7 @@ Alternatively, add `homebridge-unifi-occupancy` to your Homebridge `package.json
           "secure": false,
           "unifios": true
       },
-      "interval": 1800,
+      "interval": 180,
       "accessPointAliases": [
           {
               "accessPoint": "Dream Machine",

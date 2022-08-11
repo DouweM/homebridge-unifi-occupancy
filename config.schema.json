@@ -47,7 +47,7 @@
         "title": "Interval in seconds to query Unifi Controller (fallback if events are not working)",
         "type": "integer",
         "required": false,
-        "default": 1800
+        "default": 180
       },
       "accessPointAliases": {
         "title": "Access Point Aliases",
