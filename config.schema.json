@@ -1,16 +1,123 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "UnifiOccupancy",
   "pluginType": "platform",
   "singular": true,
   "schema": {
     "type": "object",
     "properties": {
-      "name": {
-        "title": "Name",
-        "type": "string",
-        "required": true,
-        "default": "Example Dynamic Platform"
+      "unifi": {
+        "title": "UniFi Controller Settings",
+        "type": "object",
+        "properties": {
+          "controller": {
+            "title": "Controller URL",
+            "type": "string",
+            "required": true,
+            "default": "https://192.168.1.1"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string",
+            "required": true
+          },
+          "password": {
+            "title": "Password",
+            "type": "string",
+            "required": true
+          },
+          "site": {
+            "title": "Site",
+            "type": "string",
+            "default": "default",
+            "required": true
+          },
+          "secure": {
+            "title": "Validate the Controller SSL Certificate?",
+            "type": "boolean",
+            "default": false
+          },
+          "unifios": {
+            "title": "Does your controller run on UnifiOS?",
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "interval": {
+        "title": "Interval in seconds to query Unifi Controller (fallback if events are not working)",
+        "type": "integer",
+        "required": false,
+        "default": 1800
+      },
+      "accessPointAliases": {
+        "title": "Access Point Aliases",
+        "type": "array",
+        "items": {
+          "title": "AP / Alias",
+          "type": "object",
+          "properties": {
+            "accessPoint": {
+              "title": "Access Point MAC Address or Name",
+              "type": "string",
+              "required": true
+            },
+            "alias": {
+              "title": "Alias",
+              "type": "string",
+              "required": true
+            }
+          }
+        }
       }
     }
-  }
+  },
+  "layout": [
+    {
+      "type": "flex",
+      "flex-flow": "row wrap",
+      "items": [
+        {
+          "type": "flex",
+          "flex-flow": "column",
+          "items": ["unifi.controller", "unifi.site"]
+        }
+      ]
+    },
+    {
+      "type": "flex",
+      "flex-flow": "row wrap",
+      "items": [
+        {
+          "type": "flex",
+          "flex-flow": "column",
+          "items": ["unifi.username", "unifi.password"]
+        }
+      ]
+    },
+    "unifi.unifios",
+    "unifi.secure",
+    "interval",
+    {
+      "key": "accessPointAliases",
+      "type": "array",
+      "items": [
+        {
+          "type": "flex",
+          "flex-flow": "row wrap",
+          "items": [
+            {
+              "type": "flex",
+              "flex-flow": "column",
+              "items": ["accessPointAliases[].accessPoint"]
+            },
+            {
+              "type": "flex",
+              "flex-flow": "column",
+              "items": ["accessPointAliases[].alias"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

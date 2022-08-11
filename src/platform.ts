@@ -1,116 +1,192 @@
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
+import UnifiEvents from 'unifi-events';
+import url from 'url';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
-import { ExamplePlatformAccessory } from './platformAccessory';
+import { UnifiOccupancyPlatformAccessory } from './platformAccessory';
+import { Device } from './device';
 
-/**
- * HomebridgePlatform
- * This class is the main constructor for your plugin, this is where you should
- * parse the user config and discover/register accessories with Homebridge.
- */
-export class ExampleHomebridgePlatform implements DynamicPlatformPlugin {
+export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
 
-  // this is used to track restored cached accessories
-  public readonly accessories: PlatformAccessory[] = [];
+  private unifi: UnifiEvents;
+
+  public readonly registeredAccessories: PlatformAccessory[] = [];
+
+  public readonly accessPoints: Map<string, string> = new Map();
+  public readonly accessoryHandlers: Map<string, UnifiOccupancyPlatformAccessory> = new Map();
+  public readonly devices: Map<string, Device> = new Map();
+  public readonly deviceConnectedAccessPoint: Map<string, string> = new Map();
 
   constructor(
     public readonly log: Logger,
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
-    this.log.debug('Finished initializing platform:', this.config.name);
-
-    // When this event is fired it means Homebridge has restored all cached accessories from disk.
-    // Dynamic Platform plugins should only register new accessories after this event was fired,
-    // in order to ensure they weren't added to homebridge already. This event can also be used
-    // to start discovery of new accessories.
     this.api.on('didFinishLaunching', () => {
-      log.debug('Executed didFinishLaunching callback');
-      // run the method to discover / register your devices as accessories
+      this.connect();
+
+      this.listenForConnections();
+
+      const interval = config.interval || 180;
+      setInterval(() => this.discoverDevices(), interval * 1000);
+
       this.discoverDevices();
     });
   }
 
-  /**
-   * This function is invoked when homebridge restores cached accessories from disk at startup.
-   * It should be used to setup event handlers for characteristics and update respective values.
-   */
-  configureAccessory(accessory: PlatformAccessory) {
-    this.log.info('Loading accessory from cache:', accessory.displayName);
+  connect() {
+    const controller = url.parse(this.config.unifi.controller);
 
-    // add the restored accessory to the accessories cache so we can track if it has already been registered
-    this.accessories.push(accessory);
+    this.log.debug('Connecting with UniFi Controller...');
+    this.unifi = new UnifiEvents({
+      host: controller.hostname,
+      port: controller.port || 443,
+      username: this.config.unifi.username,
+      password: this.config.unifi.password,
+      site: this.config.unifi.site || 'default',
+      insecure: [undefined, false].includes(this.config.unifi.secure),
+      unifios: [undefined, true].includes(this.config.unifi.unifios),
+      listen: true,
+    });
+
+    this.unifi.on('ctrl.disconnect', () => {
+      this.log.debug('UniFi Controller disconnected, reconnecting...');
+      this.unifi.connect();
+      this.discoverDevices();
+    });
   }
 
-  /**
-   * This is an example method showing how to register discovered accessories.
-   * Accessories must only be registered once, previously created accessories
-   * must not be registered again to prevent "duplicate UUID" errors.
-   */
-  discoverDevices() {
+  listenForConnections() {
+    this.unifi.on('*.connected', (data) => {
+      this.log.debug('Device connected from UniFi Controller:', data.msg);
+      this.discoverDevices();
+    });
 
-    // EXAMPLE ONLY
-    // A real plugin you would discover accessories from the local network, cloud services
-    // or a user-defined array in the platform config.
-    const exampleDevices = [
-      {
-        exampleUniqueId: 'ABCD',
-        exampleDisplayName: 'Bedroom',
-      },
-      {
-        exampleUniqueId: 'EFGH',
-        exampleDisplayName: 'Kitchen',
-      },
-    ];
-
-    // loop over the discovered devices and register each one if it has not already been registered
-    for (const device of exampleDevices) {
-
-      // generate a unique id for the accessory this should be generated from
-      // something globally unique, but constant, for example, the device serial
-      // number or MAC address
-      const uuid = this.api.hap.uuid.generate(device.exampleUniqueId);
-
-      // see if an accessory with the same uuid has already been registered and restored from
-      // the cached devices we stored in the `configureAccessory` method above
-      const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
-
-      if (existingAccessory) {
-        // the accessory already exists
-        this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
-
-        // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. eg.:
-        // existingAccessory.context.device = device;
-        // this.api.updatePlatformAccessories([existingAccessory]);
-
-        // create the accessory handler for the restored accessory
-        // this is imported from `platformAccessory.ts`
-        new ExamplePlatformAccessory(this, existingAccessory);
-
-        // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, eg.:
-        // remove platform accessories when no longer present
-        // this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
-        // this.log.info('Removing existing accessory from cache:', existingAccessory.displayName);
-      } else {
-        // the accessory does not yet exist, so we need to create it
-        this.log.info('Adding new accessory:', device.exampleDisplayName);
-
-        // create a new accessory
-        const accessory = new this.api.platformAccessory(device.exampleDisplayName, uuid);
-
-        // store a copy of the device object in the `accessory.context`
-        // the `context` property can be used to store any data about the accessory you may need
-        accessory.context.device = device;
-
-        // create the accessory handler for the newly create accessory
-        // this is imported from `platformAccessory.ts`
-        new ExamplePlatformAccessory(this, accessory);
-
-        // link the accessory to your platform
-        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+    this.unifi.on('*.disconnected', (data) => {
+      this.log.debug('Device disconnected from UniFi Controller:', data.msg);
+      if (this.deviceConnectedAccessPoint.has(data.user)) {
+        this.discoverDevices();
       }
+    });
+  }
+
+  configureAccessory(accessory: PlatformAccessory) {
+    this.registeredAccessories.push(accessory);
+  }
+
+  discoverDevices() {
+    this.loadAccessPoints()
+      .then(() => this.getConnectedDevices())
+      .then((connectedDevices) => {
+        this.deviceConnectedAccessPoint.clear();
+
+        for (const {device, accessPoint} of connectedDevices) {
+          this.log.debug('Found connected device @ AP:', device, accessPoint);
+
+          this.devices.set(device.mac, device);
+          this.deviceConnectedAccessPoint.set(device.mac, accessPoint);
+
+          this.accessPoints.forEach((accessPoint) => this.ensureRegisteredAccessory(device, accessPoint));
+        }
+      })
+      .then(() => this.updateRegisteredAccessories());
+  }
+
+  getAccessPoints() {
+    this.log.debug('Getting access points from UniFi Controller...');
+
+    return this.unifi.get('stat/device')
+      .then(({data}) => {
+        return data
+          .filter(d => d.is_access_point)
+          .map(({mac, name}) => ({mac, name}));
+      })
+      .catch((err) => {
+        this.log.error(`ERROR: Failed to get access points: ${err.message}`);
+      });
+  }
+
+  loadAccessPoints() {
+    return this.getAccessPoints()
+      .then((res) => {
+        for (const {mac, name} of res) {
+          let alias = name;
+          const aliasMatch = this.config.accessPointAliases?.find(({accessPoint}) => [mac, name].includes(accessPoint));
+          if (aliasMatch) {
+            alias = aliasMatch.alias;
+          }
+          this.log.debug('Found access point:', mac, alias);
+
+          this.accessPoints.set(mac, alias);
+        }
+      });
+  }
+
+  getConnectedDevices() {
+    this.log.debug('Getting connected devices from UniFi Controller...');
+
+    return this.unifi.get('stat/sta')
+      .then(({data}) => {
+        return data
+          .filter(d => [9, 12].includes(d.dev_family) && d.ap_mac)
+          .map(d => ({
+            device: new Device(
+              d.mac,
+              d.name,
+              d.hostname,
+              d.device_name,
+              d.dev_vendor,
+              d.os_name,
+            ),
+            accessPoint: this.accessPoints.get(d.ap_mac),
+          }));
+      })
+      .catch((err) => {
+        this.log.error(`ERROR: Failed to get connected devices: ${err.message}`);
+      });
+  }
+
+  ensureRegisteredAccessory(device: Device, accessPoint: string) {
+    const displayName = `${device.displayName} @ ${accessPoint}`;
+    const uuid = this.api.hap.uuid.generate(displayName);
+
+    let accessory = this.registeredAccessories.find(accessory => accessory.UUID === uuid);
+    if (accessory) {
+      return;
+    }
+
+    this.log.debug('Registering new accessory:', displayName);
+
+    accessory = new this.api.platformAccessory(displayName, uuid);
+    accessory.context.device = device;
+    accessory.context.accessPoint = accessPoint;
+
+    this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+    this.registeredAccessories.push(accessory);
+  }
+
+  updateRegisteredAccessories() {
+    for (const accessory of this.registeredAccessories) {
+      let accessoryHandler = this.accessoryHandlers.get(accessory.UUID);
+      if (!accessoryHandler) {
+        accessoryHandler = new UnifiOccupancyPlatformAccessory(this, accessory);
+        this.accessoryHandlers.set(accessory.UUID, accessoryHandler);
+        this.api.updatePlatformAccessories([accessory]);
+      }
+
+      const context = accessory.context;
+      if (!context.device || !context.accessPoint || !Array.from(this.accessPoints.values()).includes(context.accessPoint)) {
+        this.log.debug('Removing accessory:', accessory.displayName);
+        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        continue;
+      }
+
+      this.log.debug('Updating accessory status:', accessory.displayName);
+
+      accessoryHandler.connected = this.deviceConnectedAccessPoint.get(context.device.mac) === context.accessPoint;
+      accessoryHandler.update();
     }
   }
 }
