@@ -5,7 +5,7 @@ import { UnifiOccupancyPlatform } from './platform';
 export class UnifiOccupancyPlatformAccessory {
   private service: Service;
 
-  public connected = true;
+  public connected = false;
 
   constructor(
     private readonly platform: UnifiOccupancyPlatform,

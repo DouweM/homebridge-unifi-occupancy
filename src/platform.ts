@@ -27,12 +27,11 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     this.api.on('didFinishLaunching', () => {
       this.connect();
 
-      this.listenForConnections();
+      this.loadAccessPoints()
+        .then(() => this.listenForConnections())
+        .then(() => this.refreshPeriodically())
+        .then(() => this.discoverDevices());
 
-      const interval = config.interval || 180;
-      setInterval(() => this.discoverDevices(), interval * 1000);
-
-      this.discoverDevices();
     });
   }
 
@@ -60,8 +59,15 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
 
   listenForConnections() {
     this.unifi.on('*.connected', (data) => {
-      this.log.debug('Device connected from UniFi Controller:', data.msg);
+      this.log.debug('Device connected to UniFi Controller:', data.msg);
       this.discoverDevices();
+    });
+
+    this.unifi.on('*.roam', (data) => {
+      this.log.debug('Device roamed on UniFi Controller:', data.msg);
+      if (this.deviceConnectedAccessPoint.has(data.user)) {
+        this.discoverDevices();
+      }
     });
 
     this.unifi.on('*.disconnected', (data) => {
@@ -72,13 +78,17 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     });
   }
 
+  refreshPeriodically() {
+    const interval = this.config.interval || 180;
+    setInterval(() => this.discoverDevices(), interval * 1000);
+  }
+
   configureAccessory(accessory: PlatformAccessory) {
     this.registeredAccessories.push(accessory);
   }
 
   discoverDevices() {
-    this.loadAccessPoints()
-      .then(() => this.getConnectedDevices())
+    this.getConnectedDevices()
       .then((connectedDevices) => {
         this.deviceConnectedAccessPoint.clear();
 
@@ -183,9 +193,14 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
         continue;
       }
 
-      this.log.debug('Updating accessory status:', accessory.displayName);
-
+      const originalConnected = accessoryHandler.connected;
       accessoryHandler.connected = this.deviceConnectedAccessPoint.get(context.device.mac) === context.accessPoint;
+
+      if (originalConnected === accessoryHandler.connected) {
+        continue;
+      }
+
+      this.log.info('Updating accessory status:', accessory.displayName, accessoryHandler.connected ? 'connected' : 'disconnected');
       accessoryHandler.update();
     }
   }
