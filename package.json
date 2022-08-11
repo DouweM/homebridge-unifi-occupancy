@@ -1,5 +1,4 @@
 {
-  "private": true,
   "displayName": "Homebridge UniFi Occupancy",
   "name": "homebridge-unifi-occupancy",
   "version": "1.0.0",
