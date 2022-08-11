@@ -13,7 +13,7 @@ Where possible, generic prefixes and suffixes are filtered out to derive the own
 
 The easiest way to install and configure this plugin is via [Homebridge Config UI X](https://github.com/oznu/homebridge-config-ui-x).
 
-Alternatively, add `homebridge-unifi-occupancy` to your Homebridge `package.json` and add the following
+Alternatively, add `homebridge-unifi-occupancy` to your Homebridge `package.json` and add the following to `config.json`:
 
 ```json
 {
