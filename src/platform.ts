@@ -186,22 +186,18 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
         this.api.updatePlatformAccessories([accessory]);
       }
 
-      const context = accessory.context;
-      if (!context.device || !context.accessPoint || !Array.from(this.accessPoints.values()).includes(context.accessPoint)) {
+      if (!accessoryHandler.isValid) {
         this.log.debug('Removing accessory:', accessory.displayName);
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        this.accessoryHandlers.delete(accessory.UUID);
         continue;
       }
 
-      const originalConnected = accessoryHandler.connected;
-      accessoryHandler.connected = this.deviceConnectedAccessPoint.get(context.device.mac) === context.accessPoint;
+      const updated = accessoryHandler.update();
+      if (updated) {
 
-      if (originalConnected === accessoryHandler.connected) {
-        continue;
+        this.log.info('Updated accessory status:', accessory.displayName, accessoryHandler.connected ? 'connected' : 'disconnected');
       }
-
-      this.log.info('Updating accessory status:', accessory.displayName, accessoryHandler.connected ? 'connected' : 'disconnected');
-      accessoryHandler.update();
     }
   }
 }

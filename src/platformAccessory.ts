@@ -28,6 +28,34 @@ export class UnifiOccupancyPlatformAccessory {
   }
 
   update() {
+    const originalConnected = this.connected;
+
+    const context = this.accessory.context;
+    this.connected = this.platform.deviceConnectedAccessPoint.get(context.device.mac) === context.accessPoint;
+
+    if (originalConnected === this.connected) {
+      return false;
+    }
+
     this.service.updateCharacteristic(this.platform.Characteristic.OccupancyDetected, this.connected);
+    return true;
+  }
+
+  get isValid() {
+    const context = this.accessory.context;
+    if (!context.device || !context.accessPoint) {
+      return false;
+    }
+
+    if (!Array.from(this.platform.accessPoints.values()).includes(context.accessPoint)) {
+      return false;
+    }
+
+    const seenDevice = this.platform.devices.get(context.device.mac);
+    if (seenDevice && seenDevice.displayName !== context.device.displayName) {
+      return false;
+    }
+
+    return true;
   }
 }
