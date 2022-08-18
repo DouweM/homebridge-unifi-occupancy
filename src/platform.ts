@@ -164,6 +164,9 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
 
     let accessory = this.registeredAccessories.find(accessory => accessory.UUID === uuid);
     if (accessory) {
+      accessory.context.device = device;
+      accessory.context.accessPoint = accessPoint;
+      this.api.updatePlatformAccessories([accessory]);
       return;
     }
 
@@ -183,7 +186,6 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
       if (!accessoryHandler) {
         accessoryHandler = new UnifiOccupancyPlatformAccessory(this, accessory);
         this.accessoryHandlers.set(accessory.UUID, accessoryHandler);
-        this.api.updatePlatformAccessories([accessory]);
       }
 
       if (!accessoryHandler.isValid) {
