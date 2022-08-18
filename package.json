@@ -1,7 +1,7 @@
 {
   "displayName": "Homebridge UniFi Occupancy",
   "name": "homebridge-unifi-occupancy",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Homebridge plugin that creates occupancy sensors for all smartphones on a UniFi network",
   "license": "Apache-2.0",
   "repository": {

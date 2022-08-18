@@ -12,7 +12,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
 
   private unifi: UnifiEvents;
 
-  public readonly registeredAccessories: PlatformAccessory[] = [];
+  public registeredAccessories: PlatformAccessory[] = [];
 
   public readonly accessPoints: Map<string, string> = new Map();
   public readonly accessoryHandlers: Map<string, UnifiOccupancyPlatformAccessory> = new Map();
@@ -181,6 +181,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   }
 
   updateRegisteredAccessories() {
+    const validAccessories: PlatformAccessory[] = [];
     for (const accessory of this.registeredAccessories) {
       let accessoryHandler = this.accessoryHandlers.get(accessory.UUID);
       if (!accessoryHandler) {
@@ -195,11 +196,13 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
         continue;
       }
 
+      validAccessories.push(accessory);
+
       const updated = accessoryHandler.update();
       if (updated) {
-
         this.log.info('Updated accessory status:', accessory.displayName, accessoryHandler.connected ? 'connected' : 'disconnected');
       }
     }
+    this.registeredAccessories = validAccessories;
   }
 }
