@@ -1,19 +1,21 @@
 # Homebridge + UniFi = Occupancy
 
-[Homebridge](https://homebridge.io) plugin that creates occupancy sensors for all smartphones on a [UniFi](https://www.ubnt.com/download/unifi) network.
+[Homebridge](https://homebridge.io) plugin that creates occupancy sensors for all smartphones on a [UniFi](https://www.ui.com/wi-fi) network.
 
-To enable presence tracking across rooms/areas/floors, every phone gets a dedicated sensor per WiFi access point, named `<Name> @ <AP>`.
+To enable presence tracking across rooms/areas/floors, every device gets a dedicated sensor per WiFi access point, named `<Name> @ <AP>`.
 
-AP aliases can be configured to map an AP name or MAC address to a room name, or to merge different APs into one sensor (per phone).
+AP aliases can be configured to map an AP name or MAC address to a room name, or to merge different APs into one sensor (per device).
 
-Generic phone names can be overridden in the UniFi Network UI.
-Where possible, generic prefixes and suffixes are filtered out to derive the owner's name, e.g. "Douwe's iPhone" becomes "Douwe".
+Device aliases can be configured in the UniFi Network UI.
+Generic prefixes and suffixes are filtered out to derive the owner's name, e.g. `Douwe's iPhone` becomes `Douwe`.
+
+PS. To see these smartphones in your macOS menu bar as well, check out [XBar + UniFi = Who's Home?](https://github.com/DouweM/xbar-whos-home-unifi).
 
 ## Screenshot
 
 <img src="screenshot.png" width="585">
 
-## Configuration
+## Installation
 
 The easiest way to install and configure this plugin is via [Homebridge Config UI X](https://github.com/oznu/homebridge-config-ui-x).
 
