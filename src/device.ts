@@ -61,6 +61,22 @@ export class Device {
       PHONE_HINTS.some(hint => this.deviceName && this.deviceName.toLowerCase().includes(hint));
   }
 
+  get deviceType() : string {
+    return Object.values(VENDOR_NAMES).find(vendor => this.deviceName && this.deviceName.includes(vendor))
+      || this.vendor
+      || this.os;
+  }
+
+  get descriptor() : string {
+    let descriptor = this.deviceType || 'phone';
+
+    const deviceName = this.deviceName;
+    if (deviceName) {
+      descriptor += ` (${deviceName})`;
+    }
+    return descriptor;
+  }
+
   get displayName() : string {
     if (this.name) {
       for (const pattern of NAME_PATTERNS) {
@@ -79,14 +95,6 @@ export class Device {
         }
       }
     }
-
-    let descriptor = this.vendor || this.os || 'phone';
-
-    const deviceName = this.deviceName;
-    if (deviceName) {
-      descriptor += ` (${deviceName})`;
-    }
-
-    return `Unknown ${descriptor}`;
+    return `Unknown ${this.descriptor}`;
   }
 }
