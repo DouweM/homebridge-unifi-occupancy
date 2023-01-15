@@ -59,19 +59,19 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
 
   listenForConnections() {
     this.unifi.on('*.connected', (data) => {
-      this.log.debug('Device connected to UniFi Controller:', data.msg);
+      this.log.debug('Device connected:', data.msg); // TODO: Less aggressive printing
       this.discoverDevices();
     });
 
     this.unifi.on('*.roam', (data) => {
-      this.log.debug('Device roamed on UniFi Controller:', data.msg);
+      this.log.debug('Device roamed:', data.msg);
       if (this.deviceConnectedAccessPoint.has(data.user)) {
         this.discoverDevices();
       }
     });
 
     this.unifi.on('*.disconnected', (data) => {
-      this.log.debug('Device disconnected from UniFi Controller:', data.msg);
+      this.log.debug('Device disconnected:', data.msg);
       if (this.deviceConnectedAccessPoint.has(data.user)) {
         this.discoverDevices();
       }
@@ -93,7 +93,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
         this.deviceConnectedAccessPoint.clear();
 
         for (const {device, accessPoint} of connectedDevices) {
-          this.log.debug('Found connected device @ AP:', device, accessPoint);
+          this.log.debug('Found occupant:', device.displayName, '@', accessPoint);
 
           this.devices.set(device.mac, device);
           this.deviceConnectedAccessPoint.set(device.mac, accessPoint);
@@ -105,16 +105,20 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   }
 
   getAccessPoints() {
-    this.log.debug('Getting access points from UniFi Controller...');
+    this.log.debug('Getting access points...');
 
     return this.unifi.get('stat/device')
       .then(({data}) => {
         return data
-          .filter(d => d.is_access_point)
+          .map(raw => {
+            this.log.debug('Found access point:', raw.mac, raw.name);
+            return raw;
+          })
+          .filter(({is_access_point}) => is_access_point)
           .map(({mac, name}) => ({mac, name}));
       })
       .catch((err) => {
-        this.log.error(`ERROR: Failed to get access points: ${err.message}`);
+        this.log.error('ERROR: Failed to get access points', err.message);
       });
   }
 
@@ -127,7 +131,6 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
           if (aliasMatch) {
             alias = aliasMatch.alias;
           }
-          this.log.debug('Found access point:', mac, alias);
 
           this.accessPoints.set(mac, alias);
         }
@@ -135,26 +138,23 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   }
 
   getConnectedDevices() {
-    this.log.debug('Getting connected devices from UniFi Controller...');
+    this.log.debug('Getting connected devices...');
 
     return this.unifi.get('stat/sta')
       .then(({data}) => {
         return data
-          .filter(d => [9, 12].includes(d.dev_family) && d.ap_mac)
-          .map(d => ({
-            device: new Device(
-              d.mac,
-              d.name,
-              d.hostname,
-              d.device_name,
-              d.dev_vendor,
-              d.os_name,
-            ),
-            accessPoint: this.accessPoints.get(d.ap_mac),
+          .map(raw => {
+            this.log.debug('Found client:', raw.mac, raw.name || raw.hostname);
+            return new Device(raw);
+          })
+          .filter(device => device.isPhone && device.apMac)
+          .map(device => ({
+            device: device,
+            accessPoint: this.accessPoints.get(device.apMac),
           }));
       })
       .catch((err) => {
-        this.log.error(`ERROR: Failed to get connected devices: ${err.message}`);
+        this.log.error('ERROR: Failed to get connected devices:', err.message);
       });
   }
 

@@ -1,19 +1,19 @@
-const vendors = {
+const VENDOR_NAMES = {
   320: 'iPhone',
   96: 'Samsung Galaxy',
   7: 'Google Pixel',
 };
 
-const oses = {
+const OS_NAMES = {
   24: 'iPhone',
   56: 'Android',
 };
 
-const namePatterns = [
+const NAME_PATTERNS = [
   /^(.+?)['’]/, // "NAME's iPhone"
   / (?:van|de) (.+)$/, // "iPhone van NAME" (Dutch), "iPhone de NAME" (Spanish)
 ];
-const hostnamePatterns = [
+const HOSTNAME_PATTERNS = [
   /^(.+?)-s-/, // "NAME-s-Pixel"
   /^(.+?)s-iPhone$/, // "NAMEs-iPhone"
   /^iPhone(?:van|de)(.+)$/, // "iPhonevanNAME" (Dutch), "iPhonedeNAME" (Spanish)
@@ -21,17 +21,42 @@ const hostnamePatterns = [
 
 export class Device {
   constructor(
-    public mac: string,
-    public name: string,
-    public hostname: string,
-    public deviceName: string,
-    public vendor: number,
-    public os: number,
-  ) { }
+    public raw: any,
+  ) {
+
+  }
+
+  get mac() {
+    return this.raw.mac;
+  }
+
+  get name() {
+    return this.raw.name;
+  }
+
+  get hostname() {
+    return this.raw.hostname;
+  }
+
+  get vendor() {
+    return VENDOR_NAMES[this.raw.dev_vendor];
+  }
+
+  get os() {
+    return OS_NAMES[this.raw.os_name];
+  }
+
+  get isPhone(){
+    return [9, 12].includes(this.raw.dev_family);
+  }
+
+  get apMac(){
+    return this.raw.ap_mac;
+  }
 
   get displayName() {
     if (this.name) {
-      for (const pattern of namePatterns) {
+      for (const pattern of NAME_PATTERNS) {
         const match = this.name.match(pattern);
         if (match) {
           return match[1];
@@ -40,7 +65,7 @@ export class Device {
     }
 
     if (this.hostname) {
-      for (const pattern of hostnamePatterns) {
+      for (const pattern of HOSTNAME_PATTERNS) {
         const match = this.hostname.match(pattern);
         if (match) {
           return match[1];
@@ -48,9 +73,9 @@ export class Device {
       }
     }
 
-    let descriptor = vendors[this.vendor] || oses[this.os] || 'phone';
+    let descriptor = this.vendor || this.os || 'phone';
 
-    const deviceName = this.name || this.hostname || this.deviceName;
+    const deviceName = this.name || this.hostname;
     if (deviceName) {
       descriptor += ` (${deviceName})`;
     }
