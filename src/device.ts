@@ -23,7 +23,7 @@ const HOSTNAME_PATTERNS = [
 
 export class Device {
   constructor(
-    public raw: any,
+    public raw,
   ) {
 
   }
