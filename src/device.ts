@@ -3,11 +3,13 @@ const VENDOR_NAMES = {
   96: 'Samsung Galaxy',
   7: 'Google Pixel',
 };
-
 const OS_NAMES = {
   24: 'iPhone',
   56: 'Android',
 };
+const PHONE_HINTS = [
+  'phone',
+];
 
 const NAME_PATTERNS = [
   /^(.+?)['’]/, // "NAME's iPhone"
@@ -26,35 +28,40 @@ export class Device {
 
   }
 
-  get mac() {
+  get mac() : string {
     return this.raw.mac;
   }
 
-  get name() {
+  get name() : string {
     return this.raw.name;
   }
 
-  get hostname() {
+  get hostname() : string {
     return this.raw.hostname;
   }
 
-  get vendor() {
+  get deviceName() : string {
+    return this.name || this.hostname;
+  }
+
+  get vendor() : string {
     return VENDOR_NAMES[this.raw.dev_vendor];
   }
 
-  get os() {
+  get os() : string {
     return OS_NAMES[this.raw.os_name];
   }
 
-  get isPhone(){
-    return [9, 12].includes(this.raw.dev_family);
-  }
-
-  get apMac(){
+  get apMac() : string {
     return this.raw.ap_mac;
   }
 
-  get displayName() {
+  get isPhone() : boolean {
+    return [9, 12].includes(this.raw.dev_family) ||
+      PHONE_HINTS.some(hint => this.deviceName && this.deviceName.toLowerCase().includes(hint));
+  }
+
+  get displayName() : string {
     if (this.name) {
       for (const pattern of NAME_PATTERNS) {
         const match = this.name.match(pattern);
@@ -75,7 +82,7 @@ export class Device {
 
     let descriptor = this.vendor || this.os || 'phone';
 
-    const deviceName = this.name || this.hostname;
+    const deviceName = this.deviceName;
     if (deviceName) {
       descriptor += ` (${deviceName})`;
     }

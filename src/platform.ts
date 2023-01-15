@@ -93,7 +93,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
         this.deviceConnectedAccessPoint.clear();
 
         for (const {device, accessPoint} of connectedDevices) {
-          this.log.debug('Found occupant:', device.displayName, '@', accessPoint);
+          this.log.debug('Detected occupant:', device.displayName, '@', accessPoint);
 
           this.devices.set(device.mac, device);
           this.deviceConnectedAccessPoint.set(device.mac, accessPoint);
@@ -144,8 +144,9 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
       .then(({data}) => {
         return data
           .map(raw => {
-            this.log.debug('Found client:', raw.mac, raw.name || raw.hostname);
-            return new Device(raw);
+            const device = new Device(raw);
+            this.log.debug('Found client:', device.mac, device.deviceName);
+            return device;
           })
           .filter(device => device.isPhone && device.apMac)
           .map(device => ({
