@@ -1,6 +1,6 @@
 # Homebridge + UniFi = Occupancy
 
-[Homebridge](https://homebridge.io) plugin that creates occupancy sensors for all smartphones on a [UniFi](https://www.ui.com/wi-fi) network.
+[Homebridge](https://homebridge.io) plugin that adds HomeKit occupancy sensors for all smartphones on a [UniFi](https://www.ui.com/wi-fi) network to your iOS Home app.
 
 To enable presence tracking across rooms/areas/floors, every device gets a dedicated sensor per WiFi access point, named `<Name> @ <AP>`.
 
