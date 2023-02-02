@@ -1,19 +1,22 @@
 import { Service, PlatformAccessory } from 'homebridge';
+import { Device } from './device';
 
 import { UnifiOccupancyPlatform } from './platform';
+import { AUTHOR_NAME, PLUGIN_NAME } from './settings';
 
 export class UnifiOccupancyPlatformAccessory {
   private service: Service;
 
-  public connected = false;
+  private _active = false;
+  private _device: Device | null = null;
 
   constructor(
     private readonly platform: UnifiOccupancyPlatform,
     private readonly accessory: PlatformAccessory,
   ) {
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'DouweM')
-      .setCharacteristic(this.platform.Characteristic.Model, 'unifi-occupancy')
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, AUTHOR_NAME)
+      .setCharacteristic(this.platform.Characteristic.Model, PLUGIN_NAME)
       .setCharacteristic(this.platform.Characteristic.SerialNumber, accessory.UUID);
 
     this.service = this.accessory.getService(this.platform.Service.OccupancySensor) ||
@@ -22,40 +25,96 @@ export class UnifiOccupancyPlatformAccessory {
     this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.displayName);
 
     this.service.getCharacteristic(this.platform.Characteristic.OccupancyDetected)
-      .on('get', async (callback) => {
-        callback(null, this.connected);
-      });
+      .on('get', async (callback) => callback(null, this.active));
+  }
+
+  get device() {
+    if (this._device) {
+      return this._device;
+    }
+
+    const deviceContext = this.accessory.context.device;
+    if (!deviceContext) {
+      return null;
+    }
+
+    const mac = deviceContext.mac || deviceContext.raw.mac;
+    this._device = this.platform.devices.get(mac) || this.deviceFromContext(deviceContext);
+    return this._device;
+  }
+
+  deviceFromContext(context) {
+    const raw = context.raw || {
+      mac:      context.mac,
+      name:     context.name,
+      hostname: context.hostname,
+      fingerprint: {
+        dev_family: 9, // Smartphone
+        dev_cat:    44, // Smartphone
+        dev_vendor: context.vendor,
+        os_name:    context.os,
+      },
+    };
+    if (!raw.fingerprint) {
+      raw.fingerprint = {
+        dev_family:       raw.dev_family,
+        dev_cat:          raw.dev_cat,
+        dev_vendor:       raw.dev_vendor,
+        os_name:          raw.os_name,
+        computed_dev_id:  raw.dev_id,
+      };
+    }
+    return new Device(raw, this.platform);
+  }
+
+  get accessPoint() {
+    return this.accessory.context.accessPoint;
+  }
+
+  get active() {
+    return this.device!.accessPoint === this.accessPoint;
   }
 
   update() {
-    const originalConnected = this.connected;
-
-    const context = this.accessory.context;
-    this.connected = this.platform.deviceConnectedAccessPoint.get(context.device.mac) === context.accessPoint;
-
-    if (originalConnected === this.connected) {
+    if (!this.device) {
       return false;
     }
 
-    this.service.updateCharacteristic(this.platform.Characteristic.OccupancyDetected, this.connected);
-    return true;
+    this.accessory.displayName = this.device.accessoryDisplayName(this.accessPoint);
+    this.service.updateCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
+
+    const active = this.active;
+    const changed = active !== this._active;
+    this._active = active;
+
+    if (changed) {
+      this.service.updateCharacteristic(this.platform.Characteristic.OccupancyDetected, active);
+    }
+
+    return changed;
   }
 
-  get isValid() {
-    const context = this.accessory.context;
-    if (!context.device || !context.accessPoint) {
+  get valid() {
+    if (!this.device || !this.accessPoint) {
       return false;
     }
 
-    if (!Array.from(this.platform.accessPoints.values()).includes(context.accessPoint)) {
+    if (!Array.from(this.platform.accessPoints.values()).includes(this.accessPoint)) {
       return false;
     }
 
-    const seenDevice = this.platform.devices.get(context.device.mac);
-    if (seenDevice && seenDevice.displayName !== context.device.displayName) {
+    if (!this.device.shouldCreateAccessory) {
       return false;
     }
 
-    return true;
+    // If the accessory's UUID doesn't match the UUID that would be calculated
+    // the next time this device connects with this AP, it's invalid.
+    const deviceUUID = this.device.accessoryUUID(this.accessPoint);
+    if (deviceUUID !== this.accessory.UUID) {
+      return false;
+    }
+
+    // Temporary devices expire once disconnected.
+    return this.device.connected || !this.device.temporary;
   }
 }

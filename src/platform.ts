@@ -13,6 +13,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   private unifi: UnifiEvents;
 
   public registeredAccessories: PlatformAccessory[] = [];
+  public deviceFingerprints: object = {};
 
   public readonly accessPoints: Map<string, string> = new Map();
   public readonly accessoryHandlers: Map<string, UnifiOccupancyPlatformAccessory> = new Map();
@@ -24,14 +25,18 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
+    this.config.interval ||= 180;
+    this.config.deviceType ||= {smartphone: true};
+    this.config.showAsOwner ||= 'smartphone';
+
     this.api.on('didFinishLaunching', () => {
       this.connect();
 
       this.loadAccessPoints()
+        .then(() => this.loadDeviceFingerprints())
         .then(() => this.listenForConnections())
         .then(() => this.refreshPeriodically())
         .then(() => this.discoverDevices());
-
     });
   }
 
@@ -46,7 +51,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
       password: this.config.unifi.password,
       site: this.config.unifi.site || 'default',
       insecure: [undefined, false].includes(this.config.unifi.secure),
-      unifios: [undefined, true].includes(this.config.unifi.unifios),
+      unifios: true,
       listen: true,
     });
 
@@ -59,19 +64,19 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
 
   listenForConnections() {
     this.unifi.on('*.connected', (data) => {
-      this.log.debug('Device connected:', data.msg); // TODO: Less aggressive printing
+      this.log.debug('Client connected:', data.msg);
       this.discoverDevices();
     });
 
     this.unifi.on('*.roam', (data) => {
-      this.log.debug('Device roamed:', data.msg);
+      this.log.debug('Client roamed:', data.msg);
       if (this.deviceConnectedAccessPoint.has(data.user)) {
         this.discoverDevices();
       }
     });
 
     this.unifi.on('*.disconnected', (data) => {
-      this.log.debug('Device disconnected:', data.msg);
+      this.log.debug('Client disconnected:', data.msg);
       if (this.deviceConnectedAccessPoint.has(data.user)) {
         this.discoverDevices();
       }
@@ -79,8 +84,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   }
 
   refreshPeriodically() {
-    const interval = this.config.interval || 180;
-    setInterval(() => this.discoverDevices(), interval * 1000);
+    setInterval(() => this.discoverDevices(), this.config.interval * 1000);
   }
 
   configureAccessory(accessory: PlatformAccessory) {
@@ -91,12 +95,18 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     this.getConnectedDevices()
       .then((connectedDevices) => {
         this.deviceConnectedAccessPoint.clear();
+        if (!connectedDevices) {
+          return;
+        }
 
         for (const {device, accessPoint} of connectedDevices) {
-          this.log.debug('Detected occupant:', device.displayName, '@', accessPoint);
-
           this.devices.set(device.mac, device);
           this.deviceConnectedAccessPoint.set(device.mac, accessPoint);
+
+          if (!device.shouldCreateAccessory) {
+            continue;
+          }
+          this.log.debug('Detected device:', device.displayName, '@', accessPoint);
 
           this.accessPoints.forEach((accessPoint) => this.ensureRegisteredAccessory(device, accessPoint));
         }
@@ -118,7 +128,8 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
           .map(({mac, name}) => ({mac, name}));
       })
       .catch((err) => {
-        this.log.error('ERROR: Failed to get access points', err.message);
+        this.log.error('ERROR: Failed to get access points', err);
+        throw err;
       });
   }
 
@@ -126,59 +137,83 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     return this.getAccessPoints()
       .then((res) => {
         for (const {mac, name} of res) {
-          let alias = name;
           const aliasMatch = this.config.accessPointAliases?.find(({accessPoint}) => [mac, name].includes(accessPoint));
-          if (aliasMatch) {
-            alias = aliasMatch.alias;
-          }
+          const alias = aliasMatch ? aliasMatch.alias : name;
 
           this.accessPoints.set(mac, alias);
         }
       });
   }
 
+  getDeviceFingerprints() {
+    this.log.debug('Getting device fingerprints...');
+
+    return this.unifi.get('/v2/api/fingerprint_devices/0')
+      .catch((err) => {
+        this.log.error('ERROR: Failed to get device fingerprints', err);
+        throw err;
+      });
+  }
+
+  loadDeviceFingerprints() {
+    return this.getDeviceFingerprints()
+      .then((data) => {
+        this.log.debug('Loaded device fingerprints');
+        this.deviceFingerprints = data;
+      });
+  }
+
   getConnectedDevices() {
     this.log.debug('Getting connected devices...');
 
-    return this.unifi.get('stat/sta')
-      .then(({data}) => {
+    return this.unifi.get(`/v2/api/site/${this.unifi.opts.site}/clients/active`)
+      .then(data => {
         return data
           .map(raw => {
-            const device = new Device(raw);
-            this.log.debug('Found client:', device.mac, device.deviceName);
+            const device = new Device(raw, this);
+            this.log.debug(
+              'Found client:',
+              device.mac,
+              `"${device.name}"`,
+              '-',
+              device.fingerprint.name || 'Unknown',
+              '—',
+              device.type || 'not portable',
+            );
             return device;
           })
-          .filter(device => device.isPhone && device.apMac)
           .map(device => ({
             device: device,
-            accessPoint: this.accessPoints.get(device.apMac),
+            accessPoint: this.accessPoints.get(device.accessPointMac),
           }));
       })
       .catch((err) => {
-        this.log.error('ERROR: Failed to get connected devices:', err.message);
+        this.log.error('ERROR: Failed to get connected devices:', err);
+        throw err;
       });
   }
 
   ensureRegisteredAccessory(device: Device, accessPoint: string) {
-    const displayName = `${device.displayName} @ ${accessPoint}`;
-    const uuid = this.api.hap.uuid.generate(displayName);
+    const uuid = device.accessoryUUID(accessPoint);
 
     let accessory = this.registeredAccessories.find(accessory => accessory.UUID === uuid);
     if (accessory) {
-      accessory.context.device = device;
-      accessory.context.accessPoint = accessPoint;
+      // Device fingerprint may have changed, even if its display name (in UUID) didn't.
+      accessory.context.device = device.accessoryContext;
       this.api.updatePlatformAccessories([accessory]);
       return;
     }
 
-    this.log.debug('Registering new accessory:', displayName);
+    const displayName = device.accessoryDisplayName(accessPoint);
 
     accessory = new this.api.platformAccessory(displayName, uuid);
-    accessory.context.device = device;
+    accessory.context.device = device.accessoryContext;
     accessory.context.accessPoint = accessPoint;
 
     this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
     this.registeredAccessories.push(accessory);
+
+    this.log.debug('Registered new accessory:', displayName);
   }
 
   updateRegisteredAccessories() {
@@ -190,19 +225,22 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
         this.accessoryHandlers.set(accessory.UUID, accessoryHandler);
       }
 
-      if (!accessoryHandler.isValid) {
-        this.log.debug('Removing accessory:', accessory.displayName);
+      if (!accessoryHandler.valid) {
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
         this.accessoryHandlers.delete(accessory.UUID);
+        this.log.debug('Removed accessory:', accessory.displayName);
         continue;
       }
 
       validAccessories.push(accessory);
 
       const updated = accessoryHandler.update();
-      if (updated) {
-        this.log.info('Updated accessory status:', accessory.displayName, accessoryHandler.connected ? 'connected' : 'disconnected');
-      }
+
+      this.log[updated ? 'info' : 'debug'](
+        updated ? 'Updated accessory status:' : 'Accessory status unchanged:',
+        '"' + accessory.displayName + '"',
+        accessoryHandler.active ? 'active' : 'inactive',
+      );
     }
     this.registeredAccessories = validAccessories;
   }

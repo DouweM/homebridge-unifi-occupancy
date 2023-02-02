@@ -11,6 +11,7 @@
         "properties": {
           "controller": {
             "title": "Controller URL",
+            "description": "Requires UniFi OS",
             "type": "string",
             "required": true,
             "default": "https://192.168.1.1"
@@ -32,22 +33,87 @@
             "required": true
           },
           "secure": {
-            "title": "Validate the Controller SSL Certificate?",
+            "title": "Validate the Controller SSL Certificate",
             "type": "boolean",
             "default": false
-          },
-          "unifios": {
-            "title": "Does your controller run on UnifiOS?",
-            "type": "boolean",
-            "default": true
           }
         }
       },
       "interval": {
-        "title": "Interval in seconds to query Unifi Controller (fallback if events are not working)",
+        "title": "Refresh Interval, if events don't work (in seconds)",
         "type": "integer",
         "required": false,
         "default": 180
+      },
+      "deviceType": {
+        "title": "Include devices",
+        "type": "object",
+        "properties": {
+          "smartphone": {
+            "title": "Smartphone",
+            "type": "boolean",
+            "default": true
+          },
+          "laptop": {
+            "title": "Laptop",
+            "description": "Currently only reliably detects MacBooks",
+            "type": "boolean",
+            "default": false
+          },
+          "tablet": {
+            "title": "Tablet",
+            "type": "boolean",
+            "default": false
+          },
+          "smart_watch": {
+            "title": "Smart Watch",
+            "type": "boolean",
+            "default": false
+          },
+          "ereader": {
+            "title": "E-reader",
+            "type": "boolean",
+            "default": false
+          },
+          "game_console": {
+            "title": "Game Console",
+            "description": "Currently only detects Nintendo Switch and Valve Steam Deck",
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "showAsOwner": {
+        "title": "Show these devices using the owner's name",
+        "description": "Typically a device that the owner always carries around, like a smartphone or smart watch. The owner's name is derived from the device (host)name or alias (configured in the UniFi Network UI). For example, `Douwe's [device]` (English), `[device] de Douwe` (Spanish), and `[device] van Douwe` (Dutch) all become `Douwe`.",
+        "type": "string",
+        "default": "smartphone",
+        "oneOf": [
+          {
+            "title": "Smartphone",
+            "enum": ["smartphone"]
+          },
+          {
+            "title": "Laptop",
+            "enum": ["laptop"]
+          },
+          {
+            "title": "Tablet",
+            "enum": ["tablet"]
+          },
+          {
+            "title": "Smart Watch",
+            "enum": ["smart_watch"]
+          },
+          {
+            "title": "E-reader",
+            "enum": ["ereader"]
+          },
+          {
+            "title": "Game Console",
+            "enum": ["game_console"]
+          }
+        ]
       },
       "accessPointAliases": {
         "title": "Access Point Aliases",
@@ -57,12 +123,14 @@
           "type": "object",
           "properties": {
             "accessPoint": {
-              "title": "Access Point MAC Address or Name",
+              "title": "Access Point",
+              "description": "MAC Address or Name",
               "type": "string",
               "required": true
             },
             "alias": {
               "title": "Alias",
+              "description": "Room Name",
               "type": "string",
               "required": true
             }
@@ -73,30 +141,50 @@
   },
   "layout": [
     {
-      "type": "flex",
-      "flex-flow": "row wrap",
+      "ref": "unifi",
+      "type": "fieldset",
+      "title": "UniFi Controller Settings",
       "items": [
         {
           "type": "flex",
-          "flex-flow": "column",
-          "items": ["unifi.controller", "unifi.username"]
-        }
+          "flex-flow": "row wrap",
+          "items": [
+            {
+              "type": "flex",
+              "flex-flow": "column",
+              "items": ["unifi.controller", "unifi.username"]
+            }
+          ]
+        },
+        {
+          "type": "flex",
+          "flex-flow": "row wrap",
+          "items": [
+            {
+              "type": "flex",
+              "flex-flow": "column",
+              "items": ["unifi.site", "unifi.password"]
+            }
+          ]
+        },
+        "unifi.secure",
+        "interval"
       ]
     },
     {
-      "type": "flex",
-      "flex-flow": "row wrap",
+      "ref": "deviceType",
+      "type": "fieldset",
+      "title": "Devices",
       "items": [
-        {
-          "type": "flex",
-          "flex-flow": "column",
-          "items": ["unifi.site", "unifi.password"]
-        }
+        "deviceType.smartphone",
+        "deviceType.laptop",
+        "deviceType.tablet",
+        "deviceType.smart_watch",
+        "deviceType.ereader",
+        "deviceType.game_console"
       ]
     },
-    "unifi.unifios",
-    "unifi.secure",
-    "interval",
+    "showAsOwner",
     {
       "key": "accessPointAliases",
       "type": "array",
