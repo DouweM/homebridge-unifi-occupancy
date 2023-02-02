@@ -3,6 +3,7 @@
 [Homebridge](https://homebridge.io) plugin that adds HomeKit occupancy sensors for all smartphones (and/or other portable devices) on a [UniFi](https://www.ui.com/wi-fi) network to your iOS Home app.
 
 To enable tracking devices across rooms/areas/floors, every device gets a dedicated sensor per WiFi access point, named `<AP> <Name>` (so that the AP prefix is hidden by the Home app if it matches the room name).
+<!-- TODO: Manually change room in Home -->
 
 By default, only smartphones are included and are shown using the owner's name, which is derived from the device (host)name or alias (configured in the UniFi Network UI).
 For example, `Douwe's iPhone` (English), `iPhone de Douwe` (Spanish), and `iPhone van Douwe` (Dutch) all become `Douwe`.

@@ -17,12 +17,11 @@ export class UnifiOccupancyPlatformAccessory {
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, AUTHOR_NAME)
       .setCharacteristic(this.platform.Characteristic.Model, PLUGIN_NAME)
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, accessory.UUID);
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, accessory.UUID)
+      .setCharacteristic(this.platform.Characteristic.Name, accessory.displayName);
 
     this.service = this.accessory.getService(this.platform.Service.OccupancySensor) ||
       this.accessory.addService(this.platform.Service.OccupancySensor);
-
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.displayName);
 
     this.service.getCharacteristic(this.platform.Characteristic.OccupancyDetected)
       .on('get', async (callback) => callback(null, this.active));
@@ -81,7 +80,8 @@ export class UnifiOccupancyPlatformAccessory {
     }
 
     this.accessory.displayName = this.device.accessoryDisplayName(this.accessPoint);
-    this.service.updateCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
+    this.accessory.getService(this.platform.Service.AccessoryInformation)!
+      .setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
 
     const active = this.active;
     const changed = active !== this._active;
