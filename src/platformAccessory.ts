@@ -47,6 +47,7 @@ export class UnifiOccupancyPlatformAccessory {
       mac:      context.mac,
       name:     context.name,
       hostname: context.hostname,
+      is_wired: false,
       fingerprint: {
         dev_family: 9, // Smartphone
         dev_cat:    44, // Smartphone
@@ -103,7 +104,7 @@ export class UnifiOccupancyPlatformAccessory {
       return false;
     }
 
-    if (!this.device.shouldCreateAccessory) {
+    if (!this.device.shouldCreateAccessory(this.accessPoint)) {
       return false;
     }
 

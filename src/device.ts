@@ -5,6 +5,7 @@ const TYPE_TESTS = {
   'smart_watch':  (familyIs, nameContains) => familyIs('Wearable devices', 'Smart Watch') || nameContains('watch'),
   'ereader':      (familyIs, nameContains) => familyIs('eBook Reader') || nameContains('ereader'),
   'game_console': (familyIs, nameContains) => nameContains('Nintendo Switch', 'Steam Deck'),
+  'handheld':     (familyIs, nameContains) => familyIs('Handheld'),
 };
 
 const NAME_OWNER_PATTERNS = [
@@ -16,7 +17,7 @@ const HOSTNAME_OWNER_PATTERNS = [
   /^(.+?)-s-/, // "<owner>-s-<device>"
   /^(.+?)s-iPhone$/, // "<owner>s-iPhone"
   /^iPhone(?:van|de)(.+)$/, // "iPhonevan<owner>" (Dutch), "iPhonede<owner>" (Spanish)
-  /^-(?:van|de)-(.+)$/, // "<device>-van-<owner>" (Dutch), "<device>-de-<owner>" (Spanish)
+  /-(?:van|de)-(.+)$/, // "<device>-van-<owner>" (Dutch), "<device>-de-<owner>" (Spanish)
 ];
 
 function ownerFromName(name, patterns) {
@@ -55,8 +56,12 @@ export class Device {
     return this.raw.hostname;
   }
 
+  get wired() : boolean {
+    return !!this.raw.is_wired;
+  }
+
   get accessPointMac() : string {
-    return this.raw.ap_mac;
+    return this.wired ? this.raw.uplink_mac : this.raw.ap_mac;
   }
 
   get accessPoint() : string {
@@ -86,18 +91,28 @@ export class Device {
     };
 
     this._fingerprint = {
-      name:     fingerprint.name,
-      family:   fingerprints.family_ids['' + fingerprint.family_id],
-      type:     fingerprints.dev_type_ids['' + fingerprint.dev_type_id],
-      vendor:   fingerprints.vendor_ids['' + fingerprint.vendor_id],
-      osClass:  fingerprints.os_class_ids['' + fingerprint.os_class_id],
-      osName:   fingerprints.os_name_ids['' + fingerprint.os_name_id],
+      id:         devId,
+      name:       fingerprint.name,
+      familyId:   fingerprint.family_id,
+      family:     fingerprints.family_ids['' + fingerprint.family_id],
+      typeId:     fingerprint.dev_type_id,
+      type:       fingerprints.dev_type_ids['' + fingerprint.dev_type_id],
+      vendorId:   fingerprint.vendor_id,
+      vendor:     fingerprints.vendor_ids['' + fingerprint.vendor_id],
+      osClassId:  fingerprint.os_class_id,
+      osClass:    fingerprints.os_class_ids['' + fingerprint.os_class_id],
+      osNameId:   fingerprint.os_name_id,
+      osName:     fingerprints.os_name_ids['' + fingerprint.os_name_id],
     };
 
     return this._fingerprint;
   }
 
-  get type(): string | null {
+  get type(): string {
+    if (this.wired) {
+      return 'wired';
+    }
+
     const fingerprint = this.fingerprint;
     const name = this.name;
 
@@ -118,15 +133,15 @@ export class Device {
       }
     }
 
-    return null;
+    return 'other';
   }
 
-  get shouldCreateAccessory() : boolean {
-    return !!this.type && this.platform.config.deviceType![this.type];
+  get stationary() : boolean {
+    return this.wired || this.type === 'other';
   }
 
   get shouldShowAsOwner() : boolean {
-    return !!this.type && this.platform.config.showAsOwner === this.type;
+    return this.platform.config.showAsOwner === this.type;
   }
 
   get owner(): string | null {
@@ -142,6 +157,18 @@ export class Device {
       return this.owner || `Guest: ${this.name}`;
     }
     return this.name;
+  }
+
+  shouldCreateAccessory(accessPoint) : boolean {
+    if (!this.platform.config.deviceType![this.type]) {
+      return false;
+    }
+
+    if (this.stationary && this.accessPoint !== accessPoint) {
+      return false;
+    }
+
+    return true;
   }
 
   accessoryUUID(accessPoint = this.accessPoint) {

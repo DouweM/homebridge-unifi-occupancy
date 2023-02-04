@@ -103,7 +103,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
           this.devices.set(device.mac, device);
           this.deviceConnectedAccessPoint.set(device.mac, accessPoint);
 
-          if (!device.shouldCreateAccessory) {
+          if (!device.shouldCreateAccessory(accessPoint)) {
             continue;
           }
           this.log.debug('Detected device:', device.displayName, '@', accessPoint);
@@ -117,15 +117,14 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   getAccessPoints() {
     this.log.debug('Getting access points...');
 
-    return this.unifi.get('stat/device')
-      .then(({data}) => {
-        return data
+    return this.unifi.get(`/v2/api/site/${this.unifi.opts.site}/device`)
+      .then(({network_devices}) => {
+        return network_devices
+          .filter(({is_access_point}) => this.config.deviceType.wired || is_access_point)
           .map(raw => {
             this.log.debug('Found access point:', raw.mac, raw.name);
-            return raw;
-          })
-          .filter(({is_access_point}) => is_access_point)
-          .map(({mac, name}) => ({mac, name}));
+            return {mac: raw.mac, name: raw.name};
+          });
       })
       .catch((err) => {
         this.log.error('ERROR: Failed to get access points', err);
@@ -178,14 +177,13 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
               '-',
               device.fingerprint.name || 'Unknown',
               '—',
-              device.type || 'not portable',
+              device.type,
             );
-            return device;
-          })
-          .map(device => ({
-            device: device,
-            accessPoint: this.accessPoints.get(device.accessPointMac),
-          }));
+            return {
+              device: device,
+              accessPoint: this.accessPoints.get(device.accessPointMac),
+            };
+          });
       })
       .catch((err) => {
         this.log.error('ERROR: Failed to get connected devices:', err);
@@ -201,6 +199,10 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
       // Device fingerprint may have changed, even if its display name (in UUID) didn't.
       accessory.context.device = device.accessoryContext;
       this.api.updatePlatformAccessories([accessory]);
+      return;
+    }
+
+    if (!device.shouldCreateAccessory(accessPoint)) {
       return;
     }
 

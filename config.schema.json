@@ -40,7 +40,8 @@
         }
       },
       "interval": {
-        "title": "Refresh Interval, if events don't work (in seconds)",
+        "title": "Refresh Interval (in seconds)",
+        "description": "If connect/disconnect/roam events don't work, ",
         "type": "integer",
         "required": false,
         "default": 180
@@ -80,12 +81,29 @@
             "description": "Currently only detects Nintendo Switch and Valve Steam Deck",
             "type": "boolean",
             "default": false
+          },
+          "handheld": {
+            "title": "Unspecified handheld",
+            "description": "Any other devices identified as 'Handheld'",
+            "type": "boolean",
+            "default": false
+          },
+          "other": {
+            "title": "Other wireless",
+            "description": "All other wireless devices, including those that don't typically move around",
+            "type": "boolean",
+            "default": false
+          },
+          "wired": {
+            "title": "Wired devices",
+            "type": "boolean",
+            "default": false
           }
         }
       },
       "showAsOwner": {
         "title": "Show these devices using the owner's name",
-        "description": "Typically a device that the owner always carries around, like a smartphone or smart watch. The owner's name is derived from the device (host)name or alias (configured in the UniFi Network UI). For example, `Douwe's [device]` (English), `[device] de Douwe` (Spanish), and `[device] van Douwe` (Dutch) all become `Douwe`.",
+        "description": "Should be a device that the owner always carries around. The owner's name is derived from the device (host)name or alias (configured in the UniFi Network UI). For example, `Douwe's [device]` (English), `[device] de Douwe` (Spanish), and `[device] van Douwe` (Dutch) all become `Douwe`.",
         "type": "string",
         "default": "smartphone",
         "oneOf": [
@@ -94,24 +112,8 @@
             "enum": ["smartphone"]
           },
           {
-            "title": "Laptop",
-            "enum": ["laptop"]
-          },
-          {
-            "title": "Tablet",
-            "enum": ["tablet"]
-          },
-          {
             "title": "Smart Watch",
             "enum": ["smart_watch"]
-          },
-          {
-            "title": "E-reader",
-            "enum": ["ereader"]
-          },
-          {
-            "title": "Game Console",
-            "enum": ["game_console"]
           }
         ]
       },
@@ -181,7 +183,10 @@
         "deviceType.tablet",
         "deviceType.smart_watch",
         "deviceType.ereader",
-        "deviceType.game_console"
+        "deviceType.game_console",
+        "deviceType.handheld",
+        "deviceType.other",
+        "deviceType.wired"
       ]
     },
     "showAsOwner",
