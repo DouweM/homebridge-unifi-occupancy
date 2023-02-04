@@ -164,7 +164,7 @@ export class Device {
       return false;
     }
 
-    if (this.stationary && this.accessPoint !== accessPoint) {
+    if ((this.platform.config.lazy || this.stationary) && this.accessPoint !== accessPoint) {
       return false;
     }
 

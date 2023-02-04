@@ -46,6 +46,12 @@
         "required": false,
         "default": 180
       },
+      "lazy": {
+        "title": "Lazily create accessories for portable devices",
+        "description": "Only create accessories for access points once devices connect to them. Turn this on if you're likely to hit the limit of 149 accessories per bridge, like if you have 5 APs and expect 30 devices.",
+        "type": "boolean",
+        "default": false
+      },
       "deviceType": {
         "title": "Include devices",
         "type": "object",
@@ -173,6 +179,7 @@
         "interval"
       ]
     },
+    "lazy",
     {
       "ref": "deviceType",
       "type": "fieldset",
