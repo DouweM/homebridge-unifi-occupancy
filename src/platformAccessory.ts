@@ -67,12 +67,19 @@ export class UnifiOccupancyPlatformAccessory {
     return new Device(raw, this.platform);
   }
 
-  get accessPoint() {
+  get accessPoint(): string | null {
     return this.accessory.context.accessPoint;
   }
 
   get active() {
-    return this.device!.accessPoint === this.accessPoint;
+    if (!this.device) {
+      return false;
+    }
+    if (!this.accessPoint) {
+      return this.device.connected;
+    }
+
+    return this.device.accessPoint === this.accessPoint;
   }
 
   update() {
@@ -96,11 +103,11 @@ export class UnifiOccupancyPlatformAccessory {
   }
 
   get valid() {
-    if (!this.device || !this.accessPoint) {
+    if (!this.device) {
       return false;
     }
 
-    if (!Array.from(this.platform.accessPoints.values()).includes(this.accessPoint)) {
+    if (this.accessPoint && !Array.from(this.platform.accessPoints.values()).includes(this.accessPoint)) {
       return false;
     }
 

@@ -136,10 +136,6 @@ export class Device {
     return 'other';
   }
 
-  get stationary() : boolean {
-    return this.wired || this.type === 'other';
-  }
-
   get shouldShowAsOwner() : boolean {
     return this.platform.config.showAsOwner === this.type;
   }
@@ -159,24 +155,39 @@ export class Device {
     return this.name;
   }
 
-  shouldCreateAccessory(accessPoint) : boolean {
-    if (!this.platform.config.deviceType![this.type]) {
+  get typeConfig() {
+    return this.platform.config.deviceType[this.type];
+  }
+
+  shouldCreateAccessory(accessPoint: string | null) : boolean {
+    if (!this.typeConfig.enabled) {
       return false;
     }
 
-    if ((this.platform.config.lazy || this.stationary) && this.accessPoint !== accessPoint) {
-      return false;
+    if (!accessPoint) {
+      return this.typeConfig.home_accessory;
+    }
+
+    if (this.typeConfig.lazy || this.temporary) {
+      return this.accessPoint === accessPoint;
     }
 
     return true;
   }
 
-  accessoryUUID(accessPoint = this.accessPoint) {
-    // "<Device> @ <AP>" to ensure backward compatibility
-    return this.platform.api.hap.uuid.generate(`${this.displayName} @ ${accessPoint}`);
+  accessoryUUID(accessPoint: string | null) {
+    let uuidKey = this.displayName;
+    if (accessPoint) {
+      uuidKey += ` @ ${accessPoint}`;
+    }
+    return this.platform.api.hap.uuid.generate(uuidKey);
   }
 
-  accessoryDisplayName(accessPoint = this.accessPoint) {
+  accessoryDisplayName(accessPoint: string | null) {
+    if (!accessPoint) {
+      return this.displayName;
+    }
+
     // "<AP> <Device>" so the "<AP>" prefix is hidden by the Home app if it matches the room name
     return `${accessPoint} ${this.displayName}`;
   }

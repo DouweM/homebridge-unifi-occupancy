@@ -46,67 +46,6 @@
         "required": false,
         "default": 180
       },
-      "lazy": {
-        "title": "Lazily create accessories for portable devices",
-        "description": "Only create accessories for access points once devices connect to them. Turn this on if you're likely to hit the limit of 149 accessories per bridge, like if you have 5 APs and expect 30 devices.",
-        "type": "boolean",
-        "default": false
-      },
-      "deviceType": {
-        "title": "Include devices",
-        "type": "object",
-        "properties": {
-          "smartphone": {
-            "title": "Smartphone",
-            "type": "boolean",
-            "default": true
-          },
-          "laptop": {
-            "title": "Laptop",
-            "description": "Currently only reliably detects MacBooks",
-            "type": "boolean",
-            "default": false
-          },
-          "tablet": {
-            "title": "Tablet",
-            "type": "boolean",
-            "default": false
-          },
-          "smart_watch": {
-            "title": "Smart Watch",
-            "type": "boolean",
-            "default": false
-          },
-          "ereader": {
-            "title": "E-reader",
-            "type": "boolean",
-            "default": false
-          },
-          "game_console": {
-            "title": "Game Console",
-            "description": "Currently only detects Nintendo Switch and Valve Steam Deck",
-            "type": "boolean",
-            "default": false
-          },
-          "handheld": {
-            "title": "Unspecified handheld",
-            "description": "Any other devices identified as 'Handheld'",
-            "type": "boolean",
-            "default": false
-          },
-          "other": {
-            "title": "Other wireless",
-            "description": "All other wireless devices, including those that don't typically move around",
-            "type": "boolean",
-            "default": false
-          },
-          "wired": {
-            "title": "Wired devices",
-            "type": "boolean",
-            "default": false
-          }
-        }
-      },
       "showAsOwner": {
         "title": "Show these devices using the owner's name",
         "description": "Should be a device that the owner always carries around. The owner's name is derived from the device (host)name or alias (configured in the UniFi Network UI). For example, `Douwe's [device]` (English), `[device] de Douwe` (Spanish), and `[device] van Douwe` (Dutch) all become `Douwe`.",
@@ -122,6 +61,192 @@
             "enum": ["smart_watch"]
           }
         ]
+      },
+      "deviceType": {
+        "title": "Include devices",
+        "type": "object",
+        "properties": {
+          "smartphone": {
+            "title": "Smartphone",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "title": "Create accessories for smartphones",
+                "type": "boolean",
+                "default": true
+              },
+              "lazy": {
+                "title": "Create accessories only for APs a device has connected to",
+                "type": "boolean",
+                "default": false
+              },
+              "home_accessory": {
+                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "laptop": {
+            "title": "Laptop",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "title": "Create accessories for laptops",
+                "description": "Currently only reliably detects MacBooks",
+                "type": "boolean",
+                "default": false
+              },
+              "lazy": {
+                "title": "Create accessories only for APs a device has connected to",
+                "type": "boolean",
+                "default": false
+              },
+              "home_accessory": {
+                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "tablet": {
+            "title": "Tablet",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "title": "Create accessories for tablets",
+                "type": "boolean",
+                "default": false
+              },
+              "lazy": {
+                "title": "Create accessories only for APs a device has connected to",
+                "type": "boolean",
+                "default": false
+              },
+              "home_accessory": {
+                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "smart_watch": {
+            "title": "Smart Watch",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "title": "Create accessories for smart watches",
+                "type": "boolean",
+                "default": false
+              },
+              "lazy": {
+                "title": "Create accessories only for APs a device has connected to",
+                "type": "boolean",
+                "default": false
+              },
+              "home_accessory": {
+                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "ereader": {
+            "title": "E-reader",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "title": "Create accessories for e-readers",
+                "type": "boolean",
+                "default": false
+              },
+              "lazy": {
+                "title": "Create accessories only for APs a device has connected to",
+                "type": "boolean",
+                "default": false
+              },
+              "home_accessory": {
+                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "game_console": {
+            "title": "Portable Game Console",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "title": "Create accessories for portable game consoles",
+                "description": "Currently only detects Nintendo Switch and Valve Steam Deck",
+                "type": "boolean",
+                "default": false
+              },
+              "lazy": {
+                "title": "Create accessories only for APs a device has connected to",
+                "type": "boolean",
+                "default": false
+              },
+              "home_accessory": {
+                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "handheld": {
+            "title": "Unidentified Handheld",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "title": "Create accessories for other devices identified as 'Handheld'",
+                "type": "boolean",
+                "default": false
+              },
+              "lazy": {
+                "title": "Create accessories only for APs a device has connected to",
+                "type": "boolean",
+                "default": false
+              },
+              "home_accessory": {
+                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "other": {
+            "title": "Other wireless clients",
+            "properties": {
+              "enabled": {
+                "title": "Create accessories for all other wireless clients, including non-portable",
+                "type": "boolean",
+                "default": false
+              },
+              "lazy": {
+                "title": "Create accessories only for APs a client has connected to",
+                "type": "boolean",
+                "default": true
+              },
+              "home_accessory": {
+                "title": "Create home-wide accessory that is active when a client is connected to any AP",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "wired": {
+            "title": "Wired clients",
+            "properties": {
+              "enabled": {
+                "title": "Create accessories for wired clients",
+                "description": "An accessory is only created for the UniFi device a wired client is connected to.",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        }
       },
       "accessPointAliases": {
         "title": "Access Point Aliases",
@@ -179,24 +304,100 @@
         "interval"
       ]
     },
-    "lazy",
     {
       "ref": "deviceType",
       "type": "fieldset",
       "title": "Devices",
       "items": [
-        "deviceType.smartphone",
-        "deviceType.laptop",
-        "deviceType.tablet",
-        "deviceType.smart_watch",
-        "deviceType.ereader",
-        "deviceType.game_console",
-        "deviceType.handheld",
-        "deviceType.other",
-        "deviceType.wired"
+        "showAsOwner",
+        {
+          "ref": "deviceType.smartphone",
+          "type": "fieldset",
+          "title": "Smartphone",
+          "items": [
+            "deviceType.smartphone.enabled",
+            "deviceType.smartphone.lazy",
+            "deviceType.smartphone.home_accessory"
+          ]
+        },
+        {
+          "ref": "deviceType.laptop",
+          "type": "fieldset",
+          "title": "Laptop",
+          "items": [
+            "deviceType.laptop.enabled",
+            "deviceType.laptop.lazy",
+            "deviceType.laptop.home_accessory"
+          ]
+        },
+        {
+          "ref": "deviceType.tablet",
+          "type": "fieldset",
+          "title": "Tablet",
+          "items": [
+            "deviceType.tablet.enabled",
+            "deviceType.tablet.lazy",
+            "deviceType.tablet.home_accessory"
+          ]
+        },
+        {
+          "ref": "deviceType.smart_watch",
+          "type": "fieldset",
+          "title": "Smart Watch",
+          "items": [
+            "deviceType.smart_watch.enabled",
+            "deviceType.smart_watch.lazy",
+            "deviceType.smart_watch.home_accessory"
+          ]
+        },
+        {
+          "ref": "deviceType.ereader",
+          "type": "fieldset",
+          "title": "E-reader",
+          "items": [
+            "deviceType.ereader.enabled",
+            "deviceType.ereader.lazy",
+            "deviceType.ereader.home_accessory"
+          ]
+        },
+        {
+          "ref": "deviceType.game_console",
+          "type": "fieldset",
+          "title": "Portable Game Console",
+          "items": [
+            "deviceType.game_console.enabled",
+            "deviceType.game_console.lazy",
+            "deviceType.game_console.home_accessory"
+          ]
+        },
+        {
+          "ref": "deviceType.handheld",
+          "type": "fieldset",
+          "title": "Unidentified Handheld",
+          "items": [
+            "deviceType.handheld.enabled",
+            "deviceType.handheld.lazy",
+            "deviceType.handheld.home_accessory"
+          ]
+        },
+        {
+          "ref": "deviceType.other",
+          "type": "fieldset",
+          "title": "Other wireless clients",
+          "items": [
+            "deviceType.other.enabled",
+            "deviceType.other.lazy",
+            "deviceType.other.home_accessory"
+          ]
+        },
+        {
+          "ref": "deviceType.wired",
+          "type": "fieldset",
+          "title": "Wired clients",
+          "items": ["deviceType.wired.enabled"]
+        }
       ]
     },
-    "showAsOwner",
     {
       "key": "accessPointAliases",
       "type": "array",

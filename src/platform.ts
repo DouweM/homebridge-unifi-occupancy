@@ -25,9 +25,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
-    this.config.interval ||= 180;
-    this.config.deviceType ||= {smartphone: true};
-    this.config.showAsOwner ||= 'smartphone';
+    this.setDefaultConfig();
 
     this.api.on('didFinishLaunching', () => {
       this.connect();
@@ -38,6 +36,36 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
         .then(() => this.refreshPeriodically())
         .then(() => this.discoverDevices());
     });
+  }
+
+  setDefaultConfig() {
+    this.config.interval ||= 180;
+    this.config.showAsOwner ||= 'smartphone';
+    this.config.deviceType ||= {};
+
+    const deviceTypeConfig = this.config.deviceType;
+    function defaultTypeConfig(property, config) {
+      if (property === undefined) {
+        return config;
+      }
+
+      // If property is an enabled boolean
+      if (!property.enabled) {
+        config.enabled = property;
+        return config;
+      }
+
+      return property;
+    }
+    deviceTypeConfig.smartphone = defaultTypeConfig(deviceTypeConfig.smartphone, {enabled: true, lazy: false, home_accessory: false});
+    deviceTypeConfig.laptop = defaultTypeConfig(deviceTypeConfig.laptop, {enabled: false, lazy: false, home_accessory: false});
+    deviceTypeConfig.tablet = defaultTypeConfig(deviceTypeConfig.tablet, {enabled: false, lazy: false, home_accessory: false});
+    deviceTypeConfig.smart_watch = defaultTypeConfig(deviceTypeConfig.smart_watch, {enabled: false, lazy: false, home_accessory: false});
+    deviceTypeConfig.ereader = defaultTypeConfig(deviceTypeConfig.ereader, {enabled: false, lazy: false, home_accessory: false});
+    deviceTypeConfig.game_console = defaultTypeConfig(deviceTypeConfig.game_console, {enabled: false, lazy: false, home_accessory: false});
+    deviceTypeConfig.handheld = defaultTypeConfig(deviceTypeConfig.handheld, {enabled: false, lazy: false, home_accessory: false});
+    deviceTypeConfig.other = defaultTypeConfig(deviceTypeConfig.other, {enabled: false, lazy: true, home_accessory: false});
+    deviceTypeConfig.wired = defaultTypeConfig(deviceTypeConfig.wired, {enabled: false, lazy: true, home_accessory: false});
   }
 
   connect() {
@@ -103,11 +131,12 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
           this.devices.set(device.mac, device);
           this.deviceConnectedAccessPoint.set(device.mac, accessPoint);
 
-          if (!device.shouldCreateAccessory(accessPoint)) {
+          if (!device.shouldCreateAccessory(accessPoint) && !device.shouldCreateAccessory(null)) {
             continue;
           }
           this.log.debug('Detected device:', device.displayName, '@', accessPoint);
 
+          this.ensureRegisteredAccessory(device, null);
           this.accessPoints.forEach((accessPoint) => this.ensureRegisteredAccessory(device, accessPoint));
         }
       })
@@ -191,7 +220,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
       });
   }
 
-  ensureRegisteredAccessory(device: Device, accessPoint: string) {
+  ensureRegisteredAccessory(device: Device, accessPoint: string | null) {
     const uuid = device.accessoryUUID(accessPoint);
 
     let accessory = this.registeredAccessories.find(accessory => accessory.UUID === uuid);
