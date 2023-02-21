@@ -13,7 +13,7 @@ For example, `Douwe's iPhone` (English), `iPhone de Douwe` (Spanish), and `iPhon
 Other device types to create sensors for can be enabled in Settings.
 Device types are determined using the device fingerprint in the UniFi Network UI, either detected automatically or assigned manually.
 
-In addition to sensors for whether a specific device in a specific room, sensors can be created for whether a specific device is in any room, whether any device of a specific type is in a specific room, or whether any device of a specific type is in any room.
+In addition to sensors for whether a specific device in a specific room, sensors can be created for whether a specific device is in any room (with the special name `Anywhere`), whether any device of a specific type is in a specific room, or whether any device of a specific type is in any room.
 
 PS. To see these smartphones in your macOS menu bar as well, check out [XBar + UniFi = Who's Home?](https://github.com/DouweM/xbar-whos-home-unifi).
 

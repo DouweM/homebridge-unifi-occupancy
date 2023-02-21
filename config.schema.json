@@ -63,7 +63,7 @@
       },
       "deviceType": {
         "title": "Devices",
-        "description": "Below, you can specify which sensors to create for each device type. Create room-specific sensors to know where people or devices are. Create any-device sensors to use in automations, e.g. \"Turn off the lights when '[Room] Anyone' becomes inactive\".",
+        "description": "Below, you can specify which sensors to create for each device type. Note that the room name prefix is automatically hidden by the Home app once the sensor is assigned to the corresponding room. Create room-specific sensors to know where people or devices are. Create any-device sensors to use in automations, e.g. \"Turn off the lights in [Room] when '[Room] Anyone' becomes inactive\".",
         "type": "object",
         "properties": {
           "smartphone": {
@@ -76,7 +76,7 @@
                 "default": true
               },
               "homeAccessory": {
-                "title": "`[Device]`: A specific smartphone in any room (shows as `[Owner]` if configured above)",
+                "title": "`Anywhere [Device]`: A specific smartphone in any room (shows as `[Owner]` if configured above)",
                 "type": "boolean",
                 "default": false
               },
@@ -86,7 +86,7 @@
                 "default": false
               },
               "homeCatchallAccessory": {
-                "title": "`Any smartphone`: Any smartphone in any room (shows as `Anyone` if configured above)",
+                "title": "`Anywhere Any smartphone`: Any smartphone in any room (shows as `Anywhere Anyone` if configured above)",
                 "type": "boolean",
                 "default": false
               },
@@ -107,7 +107,7 @@
                 "default": true
               },
               "homeAccessory": {
-                "title": "`[Device]`: A specific smart watch in any room (shows as `[Owner]` if configured above)",
+                "title": "`Anywhere [Device]`: A specific smart watch in any room (shows as `[Owner]` if configured above)",
                 "type": "boolean",
                 "default": false
               },
@@ -117,7 +117,7 @@
                 "default": false
               },
               "homeCatchallAccessory": {
-                "title": "`Any smart watch`: Any smart watch in any room (shows as `Anyone` if configured above)",
+                "title": "`Anywhere Any smart watch`: Any smart watch in any room (shows as `Anywhere Anyone` if configured above)",
                 "type": "boolean",
                 "default": false
               },
@@ -139,7 +139,7 @@
                 "default": false
               },
               "homeAccessory": {
-                "title": "`[Device]`: A specific laptop in any room",
+                "title": "`Anywhere [Device]`: A specific laptop in any room",
                 "type": "boolean",
                 "default": false
               },
@@ -149,7 +149,7 @@
                 "default": false
               },
               "homeCatchallAccessory": {
-                "title": "`Any laptop`: Any laptop in any room",
+                "title": "`Anywhere Any laptop`: Any laptop in any room",
                 "type": "boolean",
                 "default": false
               },
@@ -170,7 +170,7 @@
                 "default": false
               },
               "homeAccessory": {
-                "title": "`[Device]`: A specific tablet in any room",
+                "title": "`Anywhere [Device]`: A specific tablet in any room",
                 "type": "boolean",
                 "default": false
               },
@@ -180,7 +180,7 @@
                 "default": false
               },
               "homeCatchallAccessory": {
-                "title": "`Any tablet`: Any tablet in any room",
+                "title": "`Anywhere Any tablet`: Any tablet in any room",
                 "type": "boolean",
                 "default": false
               },
@@ -201,7 +201,7 @@
                 "default": false
               },
               "homeAccessory": {
-                "title": "`[Device]`: A specific e-reader in any room",
+                "title": "`Anywhere [Device]`: A specific e-reader in any room",
                 "type": "boolean",
                 "default": false
               },
@@ -211,7 +211,7 @@
                 "default": false
               },
               "homeCatchallAccessory": {
-                "title": "`Any e-reader`: Any e-reader in any room",
+                "title": "`Anywhere Any e-reader`: Any e-reader in any room",
                 "type": "boolean",
                 "default": false
               },
@@ -233,7 +233,7 @@
                 "default": false
               },
               "homeAccessory": {
-                "title": "`[Device]`: A specific game console in any room",
+                "title": "`Anywhere [Device]`: A specific game console in any room",
                 "type": "boolean",
                 "default": false
               },
@@ -243,7 +243,7 @@
                 "default": false
               },
               "homeCatchallAccessory": {
-                "title": "`Any game console`: Any game console in any room",
+                "title": "`Anywhere Any game console`: Any game console in any room",
                 "type": "boolean",
                 "default": false
               },
@@ -264,7 +264,7 @@
                 "default": false
               },
               "homeAccessory": {
-                "title": "`[Device]`: A specific handheld in any room",
+                "title": "`Anywhere [Device]`: A specific handheld in any room",
                 "type": "boolean",
                 "default": false
               },
@@ -274,7 +274,7 @@
                 "default": false
               },
               "homeCatchallAccessory": {
-                "title": "`Any handheld`: Any handheld in any room",
+                "title": "`Anywhere Any handheld`: Any handheld in any room",
                 "type": "boolean",
                 "default": false
               },
@@ -295,7 +295,7 @@
                 "default": false
               },
               "homeAccessory": {
-                "title": "`[Client]`: A specific client in any room",
+                "title": "`Anywhere [Client]`: A specific client in any room",
                 "type": "boolean",
                 "default": false
               },
@@ -351,7 +351,7 @@
               "default": true
             },
             "homeAccessory": {
-              "title": "`[Device]`: A specific device in any room",
+              "title": "`Anywhere [Device]`: A specific device in any room",
               "type": "boolean",
               "default": false
             },
@@ -361,7 +361,7 @@
               "default": false
             },
             "homeCatchallAccessory": {
-              "title": "`Any [Rule Label]`: Any device in any room",
+              "title": "`Anywhere Any [Rule Label]`: Any device in any room",
               "type": "boolean",
               "default": false
             },

@@ -27,12 +27,11 @@ export class AccessorySubject {
   }
 
   accessoryDisplayName(room: string | null) : string {
-    if (!room || this.displayName.startsWith(room)) {
+    if (room && this.displayName.startsWith(room)) {
       return this.displayName;
     }
 
-    // "<Room> <Display Name>" so the "<Room>" prefix is hidden by the Home app if it matches the room name
-    return `${room} ${this.displayName}`;
+    return `${room || 'Anywhere'} ${this.displayName}`;
   }
 
   isAccessoryActive(room: string | null) : boolean {
