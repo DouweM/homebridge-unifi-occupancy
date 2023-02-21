@@ -1,6 +1,5 @@
 import { AccessorySubject } from './accessory_subject';
 import { Client } from './client';
-import { UnifiOccupancyPlatform } from './platform';
 
 export class ClientFilter extends AccessorySubject {
   get label() : string {
