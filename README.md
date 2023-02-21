@@ -19,7 +19,28 @@ PS. To see these smartphones in your macOS menu bar as well, check out [XBar + U
 
 ## Screenshot
 
-<img src="screenshot.png" width="589">
+<table>
+  <thead>
+    <tr>
+      <td>Default</td>
+      <td>Customized</td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Smartphones show as their owner</td>
+      <td>Include smart watches, laptops, tablets, and "Anywhere" sensors</td>
+    </tr>
+    <tr>
+      <td valign="top">
+        <img src="screenshot.png" width="589">
+      </td>
+      <td>
+        <img src="screenshot2.png" width="589">
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ## Installation
 
