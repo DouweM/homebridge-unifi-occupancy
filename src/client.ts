@@ -1,12 +1,6 @@
-const TYPE_TESTS = {
-  'smartphone':   (familyIs, nameContains) => familyIs('Smartphone', 'Apple iOS Device') || nameContains('phone'),
-  'laptop':       (familyIs, nameContains) => (familyIs('Desktop/Laptop') && nameContains('book')) || nameContains('laptop', 'macbook'),
-  'tablet':       (familyIs, nameContains) => familyIs('Tablet') || nameContains('tablet', 'pad', 'tab'),
-  'smart_watch':  (familyIs, nameContains) => familyIs('Wearable devices', 'Smart Watch') || nameContains('watch'),
-  'ereader':      (familyIs, nameContains) => familyIs('eBook Reader') || nameContains('ereader'),
-  'game_console': (familyIs, nameContains) => nameContains('Nintendo Switch', 'Steam Deck'),
-  'handheld':     (familyIs, nameContains) => familyIs('Handheld'),
-};
+import { AccessorySubject } from './accessory_subject';
+import { ClientRule } from './client_rule';
+import { ClientType } from './client_type';
 
 const NAME_OWNER_PATTERNS = [
   /^(.+?)['’]/, // "<owner>'s <device>"
@@ -34,13 +28,18 @@ function ownerFromName(name, patterns) {
   return null;
 }
 
-export class Device {
+export class Client extends AccessorySubject {
+  static ACCESSORY_CONTEXT_KEY = 'device';
+
+  private _config;
   private _fingerprint;
 
   constructor(
     public raw,
-    private platform,
+    platform,
   ) {
+    super(platform);
+    this._config = null;
     this._fingerprint = null;
   }
 
@@ -64,12 +63,16 @@ export class Device {
     return this.wired ? this.raw.uplink_mac : this.raw.ap_mac;
   }
 
-  get accessPoint() : string {
-    return this.platform.deviceConnectedAccessPoint.get(this.mac);
+  get room() : string {
+    return this.platform.clientCurrentRoom.get(this.mac);
   }
 
   get connected() : boolean {
-    return !!this.accessPoint;
+    return !!this.room;
+  }
+
+  isConnectedTo(room: string | null) : boolean {
+    return room ? this.room === room : this.connected;
   }
 
   get fingerprint() {
@@ -104,47 +107,49 @@ export class Device {
       osNameId:   fingerprint.os_name_id,
       osName:     fingerprints.os_name_ids['' + fingerprint.os_name_id],
     };
+    this._fingerprint.familyIs = (...values) => values.some(value => [this._fingerprint.type, this._fingerprint.family].includes(value));
+    this._fingerprint.nameContains = (...values) => {
+      return values.some(value =>
+        [fingerprint.name, this.name].some(name =>
+          name && name.toLowerCase().includes(value.toLowerCase()),
+        ),
+      );
+    };
 
     return this._fingerprint;
   }
 
-  get type(): string {
-    if (this.wired) {
-      return 'wired';
+  get type(): ClientType | null {
+    // The first that matches
+    return this.platform.clientTypes.find(type => type.matchesClient(this));
+  }
+
+  get rule(): ClientRule | null {
+    // Later rules take precedence over earlier rules
+    return this.platform.clientRules.reverse().find(rule => rule.matchesClient(this));
+  }
+
+  get config() {
+    if (this._config) {
+      return this._config;
     }
 
-    const fingerprint = this.fingerprint;
-    const name = this.name;
-
-    function familyIs(...values) {
-      return values.some(value => [fingerprint.type, fingerprint.family].includes(value));
+    this._config = this.type!.config;
+    if (this.rule) {
+      this._config = {...this._config, ...this.rule.config};
     }
-    function nameContains(...values) {
-      return values.some(value =>
-        [fingerprint.name, name].some(name =>
-          name && name.toLowerCase().includes(value.toLowerCase()),
-        ),
-      );
-    }
-
-    for (const type in TYPE_TESTS) {
-      if (TYPE_TESTS[type](familyIs, nameContains)){
-        return type;
-      }
-    }
-
-    return 'other';
+    return this._config;
   }
 
   get shouldShowAsOwner() : boolean {
-    return this.platform.config.showAsOwner === this.type;
+    return this.config.showAsOwner;
   }
 
   get owner(): string | null {
     return ownerFromName(this.raw.name, NAME_OWNER_PATTERNS) || ownerFromName(this.hostname, HOSTNAME_OWNER_PATTERNS);
   }
 
-  get temporary() : boolean {
+  get guest() : boolean {
     return this.shouldShowAsOwner && !this.owner;
   }
 
@@ -155,41 +160,44 @@ export class Device {
     return this.name;
   }
 
-  get typeConfig() {
-    return this.platform.config.deviceType[this.type];
-  }
+  shouldCreateAccessory(room: string | null) : boolean {
+    if (!room) {
+      return this.config.homeAccessory;
+    }
 
-  shouldCreateAccessory(accessPoint: string | null) : boolean {
-    if (!this.typeConfig.enabled) {
+    if (!this.config.roomAccessory) {
       return false;
     }
 
-    if (!accessPoint) {
-      return this.typeConfig.home_accessory;
-    }
-
-    if (this.typeConfig.lazy || this.temporary) {
-      return this.accessPoint === accessPoint;
+    if (this.config.lazy || this.guest) {
+      return this.room === room;
     }
 
     return true;
   }
 
-  accessoryUUID(accessPoint: string | null) {
-    let uuidKey = this.displayName;
-    if (accessPoint) {
-      uuidKey += ` @ ${accessPoint}`;
+  shouldKeepAccessory(room: string | null) : boolean {
+    if (!room) {
+      return this.config.homeAccessory;
     }
-    return this.platform.api.hap.uuid.generate(uuidKey);
+
+    if (!this.config.roomAccessory) {
+      return false;
+    }
+
+    return this.connected || !this.guest;
   }
 
-  accessoryDisplayName(accessPoint: string | null) {
-    if (!accessPoint) {
-      return this.displayName;
+  accessoryUUIDKey(room: string | null) {
+    let uuidKey = this.displayName;
+    if (room) {
+      uuidKey += ` @ ${room}`;
     }
+    return uuidKey;
+  }
 
-    // "<AP> <Device>" so the "<AP>" prefix is hidden by the Home app if it matches the room name
-    return `${accessPoint} ${this.displayName}`;
+  isAccessoryActive(room: string | null) {
+    return this.isConnectedTo(room);
   }
 
   get accessoryContext() {

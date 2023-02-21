@@ -3,38 +3,54 @@ import UnifiEvents from 'unifi-events';
 import url from 'url';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
-import { UnifiOccupancyPlatformAccessory } from './platformAccessory';
-import { Device } from './device';
+import { AccessoryHandler } from './accessory_handler';
+import { ClientAccessoryHandler } from './client_accessory_handler';
+import { ClientTypeAccessoryHandler } from './client_type_accessory_handler';
+import { Client } from './client';
+import { ClientType } from './client_type';
+import { AccessorySubject } from './accessory_subject';
+import { ClientRule } from './client_rule';
+import { ClientRuleAccessoryHandler } from './client_rule_accessory_handler';
 
 export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
 
+  public clientTypes: ClientType[] = [];
+  public clientRules: ClientRule[] = [];
+
   private unifi: UnifiEvents;
 
-  public registeredAccessories: PlatformAccessory[] = [];
-  public deviceFingerprints: object = {};
+  public accessories: Map<string, PlatformAccessory> = new Map();
+  public readonly accessoryHandlers: Map<string, AccessoryHandler> = new Map();
 
-  public readonly accessPoints: Map<string, string> = new Map();
-  public readonly accessoryHandlers: Map<string, UnifiOccupancyPlatformAccessory> = new Map();
-  public readonly devices: Map<string, Device> = new Map();
-  public readonly deviceConnectedAccessPoint: Map<string, string> = new Map();
+  public deviceFingerprints: object = {};
+  public readonly rooms: Map<string, string> = new Map();
+
+  public readonly clients: Map<string, Client> = new Map();
+  public readonly clientCurrentRoom: Map<string, string> = new Map();
+
+  ACCESSORY_HANDLERS = [
+    ClientTypeAccessoryHandler,
+    ClientRuleAccessoryHandler,
+    ClientAccessoryHandler,
+  ];
 
   constructor(
     public readonly log: Logger,
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
-    this.setDefaultConfig();
-
     this.api.on('didFinishLaunching', () => {
+      this.setDefaultConfig();
+
       this.connect();
 
-      this.loadAccessPoints()
-        .then(() => this.loadDeviceFingerprints())
+      this.loadDeviceFingerprints()
+        .then(() => this.loadRooms())
         .then(() => this.listenForConnections())
         .then(() => this.refreshPeriodically())
-        .then(() => this.discoverDevices());
+        .then(() => this.loadClients());
     });
   }
 
@@ -42,30 +58,52 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     this.config.interval ||= 180;
     this.config.showAsOwner ||= 'smartphone';
     this.config.deviceType ||= {};
+    this.config.clientRules ||= [];
 
-    const deviceTypeConfig = this.config.deviceType;
-    function defaultTypeConfig(property, config) {
-      if (property === undefined) {
-        return config;
-      }
-
-      // If property is an enabled boolean
-      if (!property.enabled) {
-        config.enabled = property;
-        return config;
-      }
-
-      return property;
-    }
-    deviceTypeConfig.smartphone = defaultTypeConfig(deviceTypeConfig.smartphone, {enabled: true, lazy: false, home_accessory: false});
-    deviceTypeConfig.laptop = defaultTypeConfig(deviceTypeConfig.laptop, {enabled: false, lazy: false, home_accessory: false});
-    deviceTypeConfig.tablet = defaultTypeConfig(deviceTypeConfig.tablet, {enabled: false, lazy: false, home_accessory: false});
-    deviceTypeConfig.smart_watch = defaultTypeConfig(deviceTypeConfig.smart_watch, {enabled: false, lazy: false, home_accessory: false});
-    deviceTypeConfig.ereader = defaultTypeConfig(deviceTypeConfig.ereader, {enabled: false, lazy: false, home_accessory: false});
-    deviceTypeConfig.game_console = defaultTypeConfig(deviceTypeConfig.game_console, {enabled: false, lazy: false, home_accessory: false});
-    deviceTypeConfig.handheld = defaultTypeConfig(deviceTypeConfig.handheld, {enabled: false, lazy: false, home_accessory: false});
-    deviceTypeConfig.other = defaultTypeConfig(deviceTypeConfig.other, {enabled: false, lazy: true, home_accessory: false});
-    deviceTypeConfig.wired = defaultTypeConfig(deviceTypeConfig.wired, {enabled: false, lazy: true, home_accessory: false});
+    this.clientTypes = [
+      new ClientType(
+        this, 'wired', 'Wired client',
+        (client, fp) => client.wired,
+        {lazy: true},
+      ),
+      new ClientType(
+        this, 'smartphone', 'Smartphone',
+        (client, fp) => fp.familyIs('Smartphone', 'Apple iOS Device') || fp.nameContains('phone'),
+        {roomAccessory: true},
+      ),
+      new ClientType(
+        this, 'smart_watch', 'Smart Watch',
+        (client, fp) => fp.familyIs('Wearable devices', 'Smart Watch') || fp.nameContains('watch'),
+      ),
+      new ClientType(
+        this, 'laptop', 'Laptop',
+        (client, fp) =>
+          (fp.familyIs('Desktop/Laptop') && fp.nameContains('book')) || fp.nameContains('laptop', 'macbook'),
+      ),
+      new ClientType(
+        this, 'tablet', 'Tablet',
+        (client, fp) => fp.familyIs('Tablet') || fp.nameContains('tablet', 'pad', 'tab'),
+      ),
+      new ClientType(
+        this, 'ereader', 'E-reader',
+        (client, fp) => fp.familyIs('eBook Reader') || fp.nameContains('ereader'),
+      ),
+      new ClientType(
+        this, 'game_console', 'Game Console',
+        (client, fp) => fp.nameContains('Nintendo Switch', 'Steam Deck'),
+      ),
+      new ClientType(
+        this, 'handheld', 'Handheld',
+        (client, fp) => fp.familyIs('Handheld'),
+        {lazy: true},
+      ),
+      new ClientType(
+        this, 'other', 'Other wireless client',
+        (client, fp) => true,
+        {lazy: true},
+      ),
+    ];
+    this.clientRules = this.config.clientRules.map(raw => new ClientRule(this, raw));
   }
 
   connect() {
@@ -86,99 +124,72 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     this.unifi.on('ctrl.disconnect', () => {
       this.log.debug('UniFi Controller disconnected, reconnecting...');
       this.unifi.connect();
-      this.discoverDevices();
+      this.loadClients();
     });
   }
 
   listenForConnections() {
     this.unifi.on('*.connected', (data) => {
       this.log.debug('Client connected:', data.msg);
-      this.discoverDevices();
+      this.loadClients();
     });
 
     this.unifi.on('*.roam', (data) => {
       this.log.debug('Client roamed:', data.msg);
-      if (this.deviceConnectedAccessPoint.has(data.user)) {
-        this.discoverDevices();
+      if (this.clientCurrentRoom.has(data.user)) {
+        this.loadClients();
       }
     });
 
     this.unifi.on('*.disconnected', (data) => {
       this.log.debug('Client disconnected:', data.msg);
-      if (this.deviceConnectedAccessPoint.has(data.user)) {
-        this.discoverDevices();
+      if (this.clientCurrentRoom.has(data.user)) {
+        this.loadClients();
       }
     });
   }
 
   refreshPeriodically() {
-    setInterval(() => this.discoverDevices(), this.config.interval * 1000);
+    setInterval(() => this.loadClients(), this.config.interval * 1000);
   }
 
   configureAccessory(accessory: PlatformAccessory) {
-    this.registeredAccessories.push(accessory);
+    this.accessories.set(accessory.UUID, accessory);
   }
 
-  discoverDevices() {
-    this.getConnectedDevices()
-      .then((connectedDevices) => {
-        this.deviceConnectedAccessPoint.clear();
-        if (!connectedDevices) {
-          return;
-        }
-
-        for (const {device, accessPoint} of connectedDevices) {
-          this.devices.set(device.mac, device);
-          this.deviceConnectedAccessPoint.set(device.mac, accessPoint);
-
-          if (!device.shouldCreateAccessory(accessPoint) && !device.shouldCreateAccessory(null)) {
-            continue;
-          }
-          this.log.debug('Detected device:', device.displayName, '@', accessPoint);
-
-          this.ensureRegisteredAccessory(device, null);
-          this.accessPoints.forEach((accessPoint) => this.ensureRegisteredAccessory(device, accessPoint));
-        }
-      })
-      .then(() => this.updateRegisteredAccessories());
-  }
-
-  getAccessPoints() {
-    this.log.debug('Getting access points...');
+  getNetworkDevices() {
+    this.log.debug('Loading network devices...');
 
     return this.unifi.get(`/v2/api/site/${this.unifi.opts.site}/device`)
       .then(({network_devices}) => {
-        return network_devices
-          .filter(({is_access_point}) => this.config.deviceType.wired || is_access_point)
-          .map(raw => {
-            this.log.debug('Found access point:', raw.mac, raw.name);
-            return {mac: raw.mac, name: raw.name};
-          });
+        return network_devices.map(({mac, name}) => ({mac, name}));
       })
       .catch((err) => {
-        this.log.error('ERROR: Failed to get access points', err);
+        this.log.error('ERROR: Failed to load network devices', err);
         throw err;
       });
   }
 
-  loadAccessPoints() {
-    return this.getAccessPoints()
+  loadRooms() {
+    return this.getNetworkDevices()
       .then((res) => {
         for (const {mac, name} of res) {
           const aliasMatch = this.config.accessPointAliases?.find(({accessPoint}) => [mac, name].includes(accessPoint));
           const alias = aliasMatch ? aliasMatch.alias : name;
 
-          this.accessPoints.set(mac, alias);
+          this.rooms.set(mac, alias);
+
+          this.log.debug('Found room:', alias, `(${name})`);
         }
       });
   }
 
   getDeviceFingerprints() {
-    this.log.debug('Getting device fingerprints...');
+    this.log.debug('Loading device fingerprints...');
 
     return this.unifi.get('/v2/api/fingerprint_devices/0')
       .catch((err) => {
-        this.log.error('ERROR: Failed to get device fingerprints', err);
+        this.log.error('ERROR: Failed to load device fingerprints', err);
         throw err;
       });
   }
@@ -191,88 +202,130 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
       });
   }
 
-  getConnectedDevices() {
-    this.log.debug('Getting connected devices...');
+  getClients() {
+    this.log.debug('Loading clients...');
 
     return this.unifi.get(`/v2/api/site/${this.unifi.opts.site}/clients/active`)
       .then(data => {
-        return data
-          .map(raw => {
-            const device = new Device(raw, this);
-            this.log.debug(
-              'Found client:',
-              device.mac,
-              `"${device.name}"`,
-              '-',
-              device.fingerprint.name || 'Unknown',
-              '—',
-              device.type,
-            );
-            return {
-              device: device,
-              accessPoint: this.accessPoints.get(device.accessPointMac),
-            };
-          });
+        return data;
       })
       .catch((err) => {
-        this.log.error('ERROR: Failed to get connected devices:', err);
+        this.log.error('ERROR: Failed to load clients:', err);
         throw err;
       });
   }
 
-  ensureRegisteredAccessory(device: Device, accessPoint: string | null) {
-    const uuid = device.accessoryUUID(accessPoint);
+  loadClients() {
+    this.getClients()
+      .then(clients => {
+        this.clientCurrentRoom.clear();
 
-    let accessory = this.registeredAccessories.find(accessory => accessory.UUID === uuid);
+        for (const raw of clients) {
+          const client = new Client(raw, this);
+          this.clients.set(client.mac, client);
+
+          const room = this.rooms.get(client.accessPointMac) || client.accessPointMac;
+          this.clientCurrentRoom.set(client.mac, room);
+
+          this.log.debug(
+            'Found client:',
+            client.name,
+            '@',
+            room,
+            '-',
+            client.fingerprint.name || 'Unknown',
+            '—',
+            client.type!.name,
+          );
+        }
+
+        for (const subject of [...this.clients.values(), ...this.clientTypes, ...this.clientRules]) {
+          this.ensureAccessories(subject);
+        }
+      })
+      .then(() => this.updateAccessories());
+  }
+
+  ensureAccessories(subject: AccessorySubject) {
+    this.ensureAccessory(subject, null);
+    this.rooms.forEach(room => this.ensureAccessory(subject, room));
+  }
+
+  ensureAccessory(subject: AccessorySubject, room: string | null) {
+    const context = {};
+    context[subject.accessoryContextIdentifier] = subject.accessoryContext;
+    context['room'] = room;
+
+    const uuid = subject.accessoryUUID(room);
+
+    let accessory = this.accessories.get(uuid);
     if (accessory) {
-      // Device fingerprint may have changed, even if its display name (in UUID) didn't.
-      accessory.context.device = device.accessoryContext;
+      accessory.context = context;
       this.api.updatePlatformAccessories([accessory]);
       return;
     }
 
-    if (!device.shouldCreateAccessory(accessPoint)) {
+    if (!subject.shouldCreateAccessory(room)) {
       return;
     }
 
-    const displayName = device.accessoryDisplayName(accessPoint);
-
+    const displayName = subject.accessoryDisplayName(room);
     accessory = new this.api.platformAccessory(displayName, uuid);
-    accessory.context.device = device.accessoryContext;
-    accessory.context.accessPoint = accessPoint;
+    accessory.context = context;
 
     this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-    this.registeredAccessories.push(accessory);
+    this.accessories.set(accessory.UUID, accessory);
 
-    this.log.debug('Registered new accessory:', displayName);
+    this.log.debug('Registered new accessory:', accessory.displayName);
   }
 
-  updateRegisteredAccessories() {
-    const validAccessories: PlatformAccessory[] = [];
-    for (const accessory of this.registeredAccessories) {
-      let accessoryHandler = this.accessoryHandlers.get(accessory.UUID);
-      if (!accessoryHandler) {
-        accessoryHandler = new UnifiOccupancyPlatformAccessory(this, accessory);
-        this.accessoryHandlers.set(accessory.UUID, accessoryHandler);
+  updateAccessories() {
+    const validAccessories: Map<string, PlatformAccessory> = new Map();
+    const invalidAccessories: PlatformAccessory[] = [];
+
+    this.accessories.forEach((accessory, uuid) => {
+      if (this.updateAccessory(accessory)) {
+        validAccessories.set(uuid, accessory);
+      } else {
+        invalidAccessories.push(accessory);
       }
+    });
 
-      if (!accessoryHandler.valid) {
-        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-        this.accessoryHandlers.delete(accessory.UUID);
-        this.log.debug('Removed accessory:', accessory.displayName);
-        continue;
-      }
+    this.accessories = validAccessories;
 
-      validAccessories.push(accessory);
-
-      const updated = accessoryHandler.update();
-
-      this.log[updated ? 'info' : 'debug'](
-        updated ? 'Updated accessory status:' : 'Accessory status unchanged:',
-        '"' + accessory.displayName + '"',
-        accessoryHandler.active ? 'active' : 'inactive',
-      );
+    for (const accessory of invalidAccessories) {
+      this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+      this.accessoryHandlers.delete(accessory.UUID);
+      this.log.debug('Removed accessory:', accessory.displayName);
     }
-    this.registeredAccessories = validAccessories;
+  }
+
+  updateAccessory(accessory: PlatformAccessory) {
+    const uuid = accessory.UUID;
+
+    let accessoryHandler = this.accessoryHandlers.get(uuid) as AccessoryHandler;
+    if (!accessoryHandler) {
+      const handlerClass = this.ACCESSORY_HANDLERS.find(handlerClass => accessory.context[handlerClass.ACCESSORY_CONTEXT_KEY]);
+      if (!handlerClass) {
+        return false;
+      }
+
+      accessoryHandler = new handlerClass(this, accessory);
+      this.accessoryHandlers.set(uuid, accessoryHandler);
+    }
+
+    if (!accessoryHandler.valid) {
+      return false;
+    }
+
+    const updated = accessoryHandler.update();
+
+    this.log[updated ? 'info' : 'debug'](
+      updated ? 'Updated accessory status:' : 'Accessory status unchanged:',
+      `"${accessory.displayName}"`,
+      accessoryHandler.active ? 'active' : 'inactive',
+    );
+
+    return true;
   }
 }

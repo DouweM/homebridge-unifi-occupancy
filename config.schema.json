@@ -6,12 +6,12 @@
     "type": "object",
     "properties": {
       "unifi": {
-        "title": "UniFi Controller Settings",
+        "title": "UniFi Controller",
         "type": "object",
         "properties": {
           "controller": {
             "title": "Controller URL",
-            "description": "Requires UniFi OS",
+            "description": "UniFi OS is required.",
             "type": "string",
             "required": true,
             "default": "https://192.168.1.1"
@@ -41,29 +41,29 @@
       },
       "interval": {
         "title": "Refresh Interval (in seconds)",
-        "description": "If connect/disconnect/roam events don't work, ",
+        "description": "If connect/disconnect/roam events don't work, devices are refreshed periodically.",
         "type": "integer",
-        "required": false,
         "default": 180
       },
       "showAsOwner": {
-        "title": "Show these devices using the owner's name",
-        "description": "Should be a device that the owner always carries around. The owner's name is derived from the device (host)name or alias (configured in the UniFi Network UI). For example, `Douwe's [device]` (English), `[device] de Douwe` (Spanish), and `[device] van Douwe` (Dutch) all become `Douwe`.",
+        "title": "Show these devices using their owner's name",
+        "description": "Choose a device that can be expected to always be near the owner, like a smartphone or smart watch. The owner's name is derived from the device (host)name or the alias configured in the UniFi Network UI. For example, `Douwe's [device]` (English), `[device] de Douwe` (Spanish), and `[device] van Douwe` (Dutch) all show up as `Douwe`.",
         "type": "string",
         "default": "smartphone",
         "oneOf": [
           {
-            "title": "Smartphone",
+            "title": "Smartphones",
             "enum": ["smartphone"]
           },
           {
-            "title": "Smart Watch",
+            "title": "Smart Watches",
             "enum": ["smart_watch"]
           }
         ]
       },
       "deviceType": {
-        "title": "Include devices",
+        "title": "Devices",
+        "description": "Below, you can specify which sensors to create for each device type. Create room-specific sensors to know where people or devices are. Create any-device sensors to use in automations, e.g. \"Turn off the lights when '[Room] Anyone' becomes inactive\".",
         "type": "object",
         "properties": {
           "smartphone": {
@@ -71,60 +71,27 @@
             "type": "object",
             "properties": {
               "enabled": {
-                "title": "Create accessories for smartphones",
+                "title": "`[Room] [Device]`: A specific smartphone in a specific room (shows as `[Room] [Owner]` if configured above)",
                 "type": "boolean",
                 "default": true
               },
-              "lazy": {
-                "title": "Create accessories only for APs a device has connected to",
+              "homeAccessory": {
+                "title": "`[Device]`: A specific smartphone in any room (shows as `[Owner]` if configured above)",
                 "type": "boolean",
                 "default": false
               },
-              "home_accessory": {
-                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+              "roomCatchallAccessory": {
+                "title": "`[Room] Any smartphone`: Any smartphone in a specific room (shows as `[Room] Anyone` if configured above)",
                 "type": "boolean",
                 "default": false
-              }
-            }
-          },
-          "laptop": {
-            "title": "Laptop",
-            "type": "object",
-            "properties": {
-              "enabled": {
-                "title": "Create accessories for laptops",
-                "description": "Currently only reliably detects MacBooks",
+              },
+              "homeCatchallAccessory": {
+                "title": "`Any smartphone`: Any smartphone in any room (shows as `Anyone` if configured above)",
                 "type": "boolean",
                 "default": false
               },
               "lazy": {
-                "title": "Create accessories only for APs a device has connected to",
-                "type": "boolean",
-                "default": false
-              },
-              "home_accessory": {
-                "title": "Create home-wide accessory that is active when a device is connected to any AP",
-                "type": "boolean",
-                "default": false
-              }
-            }
-          },
-          "tablet": {
-            "title": "Tablet",
-            "type": "object",
-            "properties": {
-              "enabled": {
-                "title": "Create accessories for tablets",
-                "type": "boolean",
-                "default": false
-              },
-              "lazy": {
-                "title": "Create accessories only for APs a device has connected to",
-                "type": "boolean",
-                "default": false
-              },
-              "home_accessory": {
-                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+                "title": "Create room-specific sensors only once a smartphone is seen there",
                 "type": "boolean",
                 "default": false
               }
@@ -135,17 +102,90 @@
             "type": "object",
             "properties": {
               "enabled": {
-                "title": "Create accessories for smart watches",
+                "title": "`[Room] [Device]`: A specific smart watch in a specific room (shows as `[Room] [Owner]` if configured above)",
+                "type": "boolean",
+                "default": true
+              },
+              "homeAccessory": {
+                "title": "`[Device]`: A specific smart watch in any room (shows as `[Owner]` if configured above)",
+                "type": "boolean",
+                "default": false
+              },
+              "roomCatchallAccessory": {
+                "title": "`[Room] Any smart watch`: Any smart watch in a specific room (shows as `[Room] Anyone` if configured above)",
+                "type": "boolean",
+                "default": false
+              },
+              "homeCatchallAccessory": {
+                "title": "`Any smart watch`: Any smart watch in any room (shows as `Anyone` if configured above)",
                 "type": "boolean",
                 "default": false
               },
               "lazy": {
-                "title": "Create accessories only for APs a device has connected to",
+                "title": "Create room-specific sensors only once a smart watch is seen there",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "laptop": {
+            "title": "Laptop",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "title": "`[Room] [Device]`: A specific laptop in a specific room",
+                "description": "Currently only reliably detects MacBooks",
                 "type": "boolean",
                 "default": false
               },
-              "home_accessory": {
-                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+              "homeAccessory": {
+                "title": "`[Device]`: A specific laptop in any room",
+                "type": "boolean",
+                "default": false
+              },
+              "roomCatchallAccessory": {
+                "title": "`[Room] Any laptop`: Any laptop in a specific room",
+                "type": "boolean",
+                "default": false
+              },
+              "homeCatchallAccessory": {
+                "title": "`Any laptop`: Any laptop in any room",
+                "type": "boolean",
+                "default": false
+              },
+              "lazy": {
+                "title": "Create room-specific sensors only once a laptop is seen there",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "tablet": {
+            "title": "Tablet",
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "title": "`[Room] [Device]`: A specific tablet in a specific room",
+                "type": "boolean",
+                "default": false
+              },
+              "homeAccessory": {
+                "title": "`[Device]`: A specific tablet in any room",
+                "type": "boolean",
+                "default": false
+              },
+              "roomCatchallAccessory": {
+                "title": "`[Room] Any tablet`: Any tablet in a specific room",
+                "type": "boolean",
+                "default": false
+              },
+              "homeCatchallAccessory": {
+                "title": "`Any tablet`: Any tablet in any room",
+                "type": "boolean",
+                "default": false
+              },
+              "lazy": {
+                "title": "Create room-specific sensors only once a tablet is seen there",
                 "type": "boolean",
                 "default": false
               }
@@ -156,17 +196,27 @@
             "type": "object",
             "properties": {
               "enabled": {
-                "title": "Create accessories for e-readers",
+                "title": "`[Room] [Device]`: A specific e-reader in a specific room",
+                "type": "boolean",
+                "default": false
+              },
+              "homeAccessory": {
+                "title": "`[Device]`: A specific e-reader in any room",
+                "type": "boolean",
+                "default": false
+              },
+              "roomCatchallAccessory": {
+                "title": "`[Room] Any e-reader`: Any e-reader in a specific room",
+                "type": "boolean",
+                "default": false
+              },
+              "homeCatchallAccessory": {
+                "title": "`Any e-reader`: Any e-reader in any room",
                 "type": "boolean",
                 "default": false
               },
               "lazy": {
-                "title": "Create accessories only for APs a device has connected to",
-                "type": "boolean",
-                "default": false
-              },
-              "home_accessory": {
-                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+                "title": "Create room-specific sensors only once an e-reader is seen there",
                 "type": "boolean",
                 "default": false
               }
@@ -177,18 +227,28 @@
             "type": "object",
             "properties": {
               "enabled": {
-                "title": "Create accessories for portable game consoles",
+                "title": "`[Room] [Device]`: A specific game console in a specific room",
                 "description": "Currently only detects Nintendo Switch and Valve Steam Deck",
                 "type": "boolean",
                 "default": false
               },
-              "lazy": {
-                "title": "Create accessories only for APs a device has connected to",
+              "homeAccessory": {
+                "title": "`[Device]`: A specific game console in any room",
                 "type": "boolean",
                 "default": false
               },
-              "home_accessory": {
-                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+              "roomCatchallAccessory": {
+                "title": "`[Room] Any game console`: Any game console in a specific room",
+                "type": "boolean",
+                "default": false
+              },
+              "homeCatchallAccessory": {
+                "title": "`Any game console`: Any game console in any room",
+                "type": "boolean",
+                "default": false
+              },
+              "lazy": {
+                "title": "Create room-specific sensors only once a game console is seen there",
                 "type": "boolean",
                 "default": false
               }
@@ -199,17 +259,27 @@
             "type": "object",
             "properties": {
               "enabled": {
-                "title": "Create accessories for other devices identified as 'Handheld'",
+                "title": "`[Room] [Device]`: A specific handheld in a specific room",
+                "type": "boolean",
+                "default": false
+              },
+              "homeAccessory": {
+                "title": "`[Device]`: A specific handheld in any room",
+                "type": "boolean",
+                "default": false
+              },
+              "roomCatchallAccessory": {
+                "title": "`[Room] Any handheld`: Any handheld in a specific room",
+                "type": "boolean",
+                "default": false
+              },
+              "homeCatchallAccessory": {
+                "title": "`Any handheld`: Any handheld in any room",
                 "type": "boolean",
                 "default": false
               },
               "lazy": {
-                "title": "Create accessories only for APs a device has connected to",
-                "type": "boolean",
-                "default": false
-              },
-              "home_accessory": {
-                "title": "Create home-wide accessory that is active when a device is connected to any AP",
+                "title": "Create room-specific sensors only once a handheld is seen there",
                 "type": "boolean",
                 "default": false
               }
@@ -217,30 +287,32 @@
           },
           "other": {
             "title": "Other wireless clients",
+            "type": "object",
             "properties": {
               "enabled": {
-                "title": "Create accessories for all other wireless clients, including non-portable",
+                "title": "`[Room] [Client]`: A specific client in a specific room",
+                "type": "boolean",
+                "default": false
+              },
+              "homeAccessory": {
+                "title": "`[Client]`: A specific client in any room",
                 "type": "boolean",
                 "default": false
               },
               "lazy": {
-                "title": "Create accessories only for APs a client has connected to",
+                "title": "Create room-specific sensors only once a client is seen there",
                 "type": "boolean",
                 "default": true
-              },
-              "home_accessory": {
-                "title": "Create home-wide accessory that is active when a client is connected to any AP",
-                "type": "boolean",
-                "default": false
               }
             }
           },
           "wired": {
             "title": "Wired clients",
+            "type": "object",
             "properties": {
               "enabled": {
-                "title": "Create accessories for wired clients",
-                "description": "An accessory is only created for the UniFi device a wired client is connected to.",
+                "title": "`[Room] [Client]`: A specific client in a specific room",
+                "description": "An sensor is only created for the room a client is in.",
                 "type": "boolean",
                 "default": false
               }
@@ -248,22 +320,74 @@
           }
         }
       },
-      "accessPointAliases": {
-        "title": "Access Point Aliases",
+      "clientRules": {
+        "title": "Device-specific Overrides",
+        "description": "Enable or disable sensors for specific devices.",
         "type": "array",
         "items": {
-          "title": "AP / Alias",
+          "title": "Rule",
+          "type": "object",
+          "properties": {
+            "label": {
+              "title": "Label",
+              "description": "The label is used in the names of any-device sensors (when enabled), e.g. `Any [Label]`.",
+              "type": "string",
+              "required": true
+            },
+            "namePatterns": {
+              "title": "(Host)Name Patterns",
+              "description": "Match devices based on (host)name or the alias configured in the UniFi Network UI. To use a regular expression instead of an exact string match, wrap the regex in `/`, e.g. `/car/`. Matches are case insensitive.",
+              "placeholder": "'Name' or '/Regex/'",
+              "type": "array",
+              "required": true,
+              "items": {
+                "title": "Pattern",
+                "type": "string"
+              }
+            },
+            "roomAccessory": {
+              "title": "`[Room] [Device]`: A specific device in a specific room",
+              "type": "boolean",
+              "default": true
+            },
+            "homeAccessory": {
+              "title": "`[Device]`: A specific device in any room",
+              "type": "boolean",
+              "default": false
+            },
+            "roomCatchallAccessory": {
+              "title": "`[Room] Any [Rule Label]`: Any device in a specific room",
+              "type": "boolean",
+              "default": false
+            },
+            "homeCatchallAccessory": {
+              "title": "`Any [Rule Label]`: Any device in any room",
+              "type": "boolean",
+              "default": false
+            },
+            "lazy": {
+              "title": "Create room-specific sensors only once a device is seen there",
+              "type": "boolean",
+              "default": true
+            }
+          }
+        }
+      },
+      "accessPointAliases": {
+        "title": "Rooms",
+        "description": "By default, the name of each access point or switch is used as the room name at the beginning of sensor names, e.g. `[Room] [Device]`. This prefix is automatically hidden by the Home app once the sensor is assigned to the corresponding room. Specify room names for each AP/switch here. Multiple APs/switches can map to the same room.",
+        "type": "array",
+        "items": {
+          "title": "Mapping",
           "type": "object",
           "properties": {
             "accessPoint": {
-              "title": "Access Point",
-              "description": "MAC Address or Name",
+              "title": "Access Point/Switch MAC/Name",
               "type": "string",
               "required": true
             },
             "alias": {
-              "title": "Alias",
-              "description": "Room Name",
+              "title": "Room Name",
               "type": "string",
               "required": true
             }
@@ -276,7 +400,8 @@
     {
       "ref": "unifi",
       "type": "fieldset",
-      "title": "UniFi Controller Settings",
+      "title": "UniFi Controller",
+      "expandable": true,
       "items": [
         {
           "type": "flex",
@@ -305,117 +430,188 @@
       ]
     },
     {
-      "ref": "deviceType",
+      "ref": "accessPointAliases",
       "type": "fieldset",
-      "title": "Devices",
+      "title": "Rooms",
+      "expandable": true,
       "items": [
-        "showAsOwner",
         {
-          "ref": "deviceType.smartphone",
-          "type": "fieldset",
-          "title": "Smartphone",
+          "key": "accessPointAliases",
+          "notitle": true,
+          "type": "array",
           "items": [
-            "deviceType.smartphone.enabled",
-            "deviceType.smartphone.lazy",
-            "deviceType.smartphone.home_accessory"
+            {
+              "type": "flex",
+              "flex-flow": "row wrap",
+              "items": [
+                {
+                  "type": "flex",
+                  "flex-flow": "column",
+                  "items": ["accessPointAliases[].accessPoint"]
+                },
+                {
+                  "type": "flex",
+                  "flex-flow": "column",
+                  "items": ["accessPointAliases[].alias"]
+                }
+              ]
+            }
           ]
-        },
-        {
-          "ref": "deviceType.laptop",
-          "type": "fieldset",
-          "title": "Laptop",
-          "items": [
-            "deviceType.laptop.enabled",
-            "deviceType.laptop.lazy",
-            "deviceType.laptop.home_accessory"
-          ]
-        },
-        {
-          "ref": "deviceType.tablet",
-          "type": "fieldset",
-          "title": "Tablet",
-          "items": [
-            "deviceType.tablet.enabled",
-            "deviceType.tablet.lazy",
-            "deviceType.tablet.home_accessory"
-          ]
-        },
-        {
-          "ref": "deviceType.smart_watch",
-          "type": "fieldset",
-          "title": "Smart Watch",
-          "items": [
-            "deviceType.smart_watch.enabled",
-            "deviceType.smart_watch.lazy",
-            "deviceType.smart_watch.home_accessory"
-          ]
-        },
-        {
-          "ref": "deviceType.ereader",
-          "type": "fieldset",
-          "title": "E-reader",
-          "items": [
-            "deviceType.ereader.enabled",
-            "deviceType.ereader.lazy",
-            "deviceType.ereader.home_accessory"
-          ]
-        },
-        {
-          "ref": "deviceType.game_console",
-          "type": "fieldset",
-          "title": "Portable Game Console",
-          "items": [
-            "deviceType.game_console.enabled",
-            "deviceType.game_console.lazy",
-            "deviceType.game_console.home_accessory"
-          ]
-        },
-        {
-          "ref": "deviceType.handheld",
-          "type": "fieldset",
-          "title": "Unidentified Handheld",
-          "items": [
-            "deviceType.handheld.enabled",
-            "deviceType.handheld.lazy",
-            "deviceType.handheld.home_accessory"
-          ]
-        },
-        {
-          "ref": "deviceType.other",
-          "type": "fieldset",
-          "title": "Other wireless clients",
-          "items": [
-            "deviceType.other.enabled",
-            "deviceType.other.lazy",
-            "deviceType.other.home_accessory"
-          ]
-        },
-        {
-          "ref": "deviceType.wired",
-          "type": "fieldset",
-          "title": "Wired clients",
-          "items": ["deviceType.wired.enabled"]
         }
       ]
     },
     {
-      "key": "accessPointAliases",
-      "type": "array",
+      "ref": "deviceType",
+      "type": "fieldset",
+      "title": "Device Types",
+      "expandable": true,
       "items": [
+        "showAsOwner",
         {
-          "type": "flex",
-          "flex-flow": "row wrap",
+          "key": "deviceType",
+          "type": "object",
+          "notitle": true,
           "items": [
             {
-              "type": "flex",
-              "flex-flow": "column",
-              "items": ["accessPointAliases[].accessPoint"]
+              "ref": "deviceType.smartphone",
+              "type": "fieldset",
+              "title": "Smartphones",
+              "expandable": true,
+              "items": [
+                "deviceType.smartphone.enabled",
+                "deviceType.smartphone.homeAccessory",
+                "deviceType.smartphone.roomCatchallAccessory",
+                "deviceType.smartphone.homeCatchallAccessory",
+                "deviceType.smartphone.lazy"
+              ]
             },
             {
-              "type": "flex",
-              "flex-flow": "column",
-              "items": ["accessPointAliases[].alias"]
+              "ref": "deviceType.smart_watch",
+              "type": "fieldset",
+              "title": "Smart Watches",
+              "expandable": true,
+              "items": [
+                "deviceType.smart_watch.enabled",
+                "deviceType.smart_watch.homeAccessory",
+                "deviceType.smart_watch.roomCatchallAccessory",
+                "deviceType.smart_watch.homeCatchallAccessory",
+                "deviceType.smart_watch.lazy"
+              ]
+            },
+            {
+              "ref": "deviceType.laptop",
+              "type": "fieldset",
+              "title": "Laptops",
+              "expandable": true,
+              "items": [
+                "deviceType.laptop.enabled",
+                "deviceType.laptop.homeAccessory",
+                "deviceType.laptop.roomCatchallAccessory",
+                "deviceType.laptop.homeCatchallAccessory",
+                "deviceType.laptop.lazy"
+              ]
+            },
+            {
+              "ref": "deviceType.tablet",
+              "type": "fieldset",
+              "title": "Tablets",
+              "expandable": true,
+              "items": [
+                "deviceType.tablet.enabled",
+                "deviceType.tablet.homeAccessory",
+                "deviceType.tablet.roomCatchallAccessory",
+                "deviceType.tablet.homeCatchallAccessory",
+                "deviceType.tablet.lazy"
+              ]
+            },
+            {
+              "ref": "deviceType.ereader",
+              "type": "fieldset",
+              "title": "E-readers",
+              "expandable": true,
+              "items": [
+                "deviceType.ereader.enabled",
+                "deviceType.ereader.homeAccessory",
+                "deviceType.ereader.roomCatchallAccessory",
+                "deviceType.ereader.homeCatchallAccessory",
+                "deviceType.ereader.lazy"
+              ]
+            },
+            {
+              "ref": "deviceType.game_console",
+              "type": "fieldset",
+              "title": "Portable Game Consoles",
+              "expandable": true,
+              "items": [
+                "deviceType.game_console.enabled",
+                "deviceType.game_console.homeAccessory",
+                "deviceType.game_console.roomCatchallAccessory",
+                "deviceType.game_console.homeCatchallAccessory",
+                "deviceType.game_console.lazy"
+              ]
+            },
+            {
+              "ref": "deviceType.handheld",
+              "type": "fieldset",
+              "title": "Unidentified Handhelds",
+              "expandable": true,
+              "items": [
+                "deviceType.handheld.enabled",
+                "deviceType.handheld.homeAccessory",
+                "deviceType.handheld.roomCatchallAccessory",
+                "deviceType.handheld.homeCatchallAccessory",
+                "deviceType.handheld.lazy"
+              ]
+            },
+            {
+              "ref": "deviceType.other",
+              "type": "fieldset",
+              "title": "Other wireless clients",
+              "expandable": true,
+              "items": [
+                "deviceType.other.enabled",
+                "deviceType.other.homeAccessory",
+                "deviceType.other.lazy"
+              ]
+            },
+            {
+              "ref": "deviceType.wired",
+              "type": "fieldset",
+              "title": "Wired clients",
+              "expandable": true,
+              "items": ["deviceType.wired.enabled"]
             }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "clientRules",
+      "type": "fieldset",
+      "title": "Device-specific Overrides",
+      "expandable": true,
+      "items": [
+        {
+          "key": "clientRules",
+          "type": "array",
+          "notitle": true,
+          "items": [
+            "clientRules[].label",
+            {
+              "key": "clientRules[].namePatterns",
+              "type": "array",
+              "items": [
+                {
+                  "key": "clientRules[].namePatterns[]",
+                  "notitle": true
+                }
+              ]
+            },
+            "clientRules[].roomAccessory",
+            "clientRules[].homeAccessory",
+            "clientRules[].roomCatchallAccessory",
+            "clientRules[].homeCatchallAccessory",
+            "clientRules[].lazy"
           ]
         }
       ]
