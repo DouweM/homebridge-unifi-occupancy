@@ -41,9 +41,11 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     public readonly config: PlatformConfig,
     public readonly api: API,
   ) {
-    this.api.on('didFinishLaunching', () => {
-      this.setDefaultConfig();
+    if (!this.parseConfig()) {
+      return;
+    }
 
+    this.api.on('didFinishLaunching', () => {
       this.connect();
 
       this.loadDeviceFingerprints()
@@ -54,7 +56,12 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     });
   }
 
-  setDefaultConfig() {
+  parseConfig(): boolean {
+    if (!this.config.unifi) {
+      this.log.error('ERROR: UniFi Controller is not configured.');
+      return false;
+    }
+
     this.config.interval ||= 180;
     this.config.showAsOwner ||= 'smartphone';
     this.config.deviceType ||= {};
@@ -104,6 +111,8 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
       ),
     ];
     this.clientRules = this.config.clientRules.map(raw => new ClientRule(this, raw));
+
+    return true;
   }
 
   connect() {
