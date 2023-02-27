@@ -1,6 +1,21 @@
+<p align="center">
+<a href="[v](https://github.com/DouweM/homebridge-unifi-occupancy)"><img src="logo.png" width="532"></a>
+</p>
+<span align="center">
+
 # Homebridge + UniFi = Occupancy
 
-[Homebridge](https://homebridge.io) plugin that adds HomeKit occupancy sensors for selected (types of) devices on a [UniFi](https://www.ui.com/wi-fi) network to your iOS Home app.
+
+[Homebridge](https://homebridge.io) plugin that adds HomeKit occupancy sensors for selected<br>
+(types of) devices on your [UniFi](https://www.ui.com/wi-fi) network to your iOS Home app.
+
+[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
+[![Version](https://img.shields.io/npm/v/homebridge-unifi-occupancy?color=green)](https://www.npmjs.com/package/homebridge-unifi-occupancy)
+[![Downloads](https://img.shields.io/npm/dt/homebridge-unifi-occupancy)](https://www.npmjs.com/package/homebridge-unifi-occupancy)
+
+</span>
+
+---
 
 By default, every smartphone gets an occupancy sensor for each access point (room/floor).
 
