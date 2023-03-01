@@ -22,7 +22,7 @@ export class ClientRule extends ClientFilter {
       return this._clientTests;
     }
 
-    this._clientTests = this.raw.namePatterns.map(pattern => {
+    this._clientTests = (this.raw.namePatterns || []).map(pattern => {
       if (pattern.startsWith('/') && pattern.endsWith('/')) {
         return (client) => client.name.match(new RegExp(pattern.slice(1, -1), 'i'));
       } else {
