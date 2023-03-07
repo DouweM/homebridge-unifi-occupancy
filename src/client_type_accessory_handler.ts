@@ -1,25 +1,21 @@
-import { AccessoryHandler } from './accessory_handler';
+import { ClientFilterAccessoryHandler } from './client_filter_accessory_handler';
 import { ClientType } from './client_type';
 
-export class ClientTypeAccessoryHandler extends AccessoryHandler {
-  static ACCESSORY_CONTEXT_KEY = ClientType.ACCESSORY_CONTEXT_KEY;
+export class ClientTypeAccessoryHandler extends ClientFilterAccessoryHandler {
+  static override SUBJECT_CLASS_NAME = ClientType.name;
+  static override SUBJECT_CONTEXT_KEY = 'clientType';
 
-  get subject() {
-    if (this._subject) {
-      return this._subject;
-    }
-
-    const clientTypeContext = this.accessory.context[ClientType.ACCESSORY_CONTEXT_KEY];
-    if (!clientTypeContext) {
-      return null;
-    }
-
-    const name = clientTypeContext.name;
-    this._subject = this.platform.clientTypes.find(clientType => clientType.name === name) || null;
-    return this._subject;
+  get type() {
+    return this.subject as ClientType;
   }
 
-  get clientType(): ClientType {
-    return this.subject as ClientType;
+  protected override subjectFromContext(context) {
+    return this.platform.clientTypes.find(clientType => clientType.name === context.name) || null;
+  }
+
+  override get subjectContext() {
+    return {
+      name: this.type.name,
+    };
   }
 }

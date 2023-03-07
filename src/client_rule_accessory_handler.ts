@@ -1,25 +1,21 @@
-import { AccessoryHandler } from './accessory_handler';
+import { ClientFilterAccessoryHandler } from './client_filter_accessory_handler';
 import { ClientRule } from './client_rule';
 
-export class ClientRuleAccessoryHandler extends AccessoryHandler {
-  static ACCESSORY_CONTEXT_KEY = ClientRule.ACCESSORY_CONTEXT_KEY;
+export class ClientRuleAccessoryHandler extends ClientFilterAccessoryHandler {
+  static override SUBJECT_CLASS_NAME = ClientRule.name;
+  static override SUBJECT_CONTEXT_KEY = 'clientRule';
 
-  get subject() {
-    if (this._subject) {
-      return this._subject;
-    }
-
-    const clientRuleContext = this.accessory.context[ClientRule.ACCESSORY_CONTEXT_KEY];
-    if (!clientRuleContext) {
-      return null;
-    }
-
-    const label = clientRuleContext.label;
-    this._subject = this.platform.clientRules.find(clientRule => clientRule.label === label) || null;
-    return this._subject;
+  get rule() {
+    return this.subject as ClientRule;
   }
 
-  get clientRule(): ClientRule {
-    return this.subject as ClientRule;
+  protected override subjectFromContext(context) {
+    return this.platform.clientRules.find(clientRule => clientRule.label === context.label) || null;
+  }
+
+  override get subjectContext() {
+    return {
+      label: this.rule.label,
+    };
   }
 }

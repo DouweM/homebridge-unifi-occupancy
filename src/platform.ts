@@ -12,6 +12,19 @@ import { AccessorySubject } from './accessory_subject';
 import { ClientRule } from './client_rule';
 import { ClientRuleAccessoryHandler } from './client_rule_accessory_handler';
 
+function ensure(map, uuid, updater, builder) {
+  let item = map.get(uuid) || null;
+  if (item) {
+    updater(item);
+  } else {
+    item = builder();
+    if (item) {
+      map.set(uuid, item);
+    }
+  }
+  return item;
+}
+
 export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   public readonly Service: typeof Service = this.api.hap.Service;
   public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
@@ -230,7 +243,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
         this.clientCurrentRoom.clear();
 
         for (const raw of clients) {
-          const client = new Client(raw, this);
+          const client = new Client(this, raw);
           this.clients.set(client.mac, client);
 
           const room = this.rooms.get(client.accessPointMac) || client.accessPointMac;
@@ -261,31 +274,23 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   }
 
   ensureAccessory(subject: AccessorySubject, room: string | null) {
-    const context = {};
-    context[subject.accessoryContextIdentifier] = subject.accessoryContext;
-    context['room'] = room;
-
-    const uuid = subject.accessoryUUID(room);
-
-    let accessory = this.accessories.get(uuid);
-    if (accessory) {
-      accessory.context = context;
-      this.api.updatePlatformAccessories([accessory]);
-      return;
-    }
-
-    if (!subject.shouldCreateAccessory(room)) {
-      return;
-    }
-
-    const displayName = subject.accessoryDisplayName(room);
-    accessory = new this.api.platformAccessory(displayName, uuid);
-    accessory.context = context;
-
-    this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-    this.accessories.set(accessory.UUID, accessory);
-
-    this.log.debug('Registered new accessory:', accessory.displayName);
+    return ensure(
+      this.accessories,
+      subject.accessoryUUID(room),
+      accessory => {
+        this.ensureAccessoryHandler(accessory, subject, room)!;
+        this.api.updatePlatformAccessories([accessory]);
+      },
+      () => {
+        const handler = this.ensureAccessoryHandler(null, subject, room)!;
+        const accessory = handler.accessory;
+        if (accessory) {
+          this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+          this.log.debug('Registered new accessory:', accessory.displayName);
+        }
+        return accessory;
+      },
+    );
   }
 
   updateAccessories() {
@@ -310,31 +315,40 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   }
 
   updateAccessory(accessory: PlatformAccessory) {
-    const uuid = accessory.UUID;
-
-    let accessoryHandler = this.accessoryHandlers.get(uuid) as AccessoryHandler;
-    if (!accessoryHandler) {
-      const handlerClass = this.ACCESSORY_HANDLERS.find(handlerClass => accessory.context[handlerClass.ACCESSORY_CONTEXT_KEY]);
-      if (!handlerClass) {
-        return false;
-      }
-
-      accessoryHandler = new handlerClass(this, accessory);
-      this.accessoryHandlers.set(uuid, accessoryHandler);
-    }
-
-    if (!accessoryHandler.valid) {
+    const handler = this.ensureAccessoryHandler(accessory);
+    if (!handler?.valid) {
       return false;
     }
 
-    const updated = accessoryHandler.update();
+    const updated = handler.update();
 
     this.log[updated ? 'info' : 'debug'](
       updated ? 'Updated accessory status:' : 'Accessory status unchanged:',
       `"${accessory.displayName}"`,
-      accessoryHandler.active ? 'active' : 'inactive',
+      handler.active ? 'active' : 'inactive',
     );
 
     return true;
+  }
+
+  private ensureAccessoryHandler(accessory?: PlatformAccessory | null, subject?: AccessorySubject, room?: string | null) {
+    return ensure(
+      this.accessoryHandlers,
+      accessory ? accessory.UUID : subject!.accessoryUUID(room!),
+      handler => {
+        if (subject) {
+          handler.subject = subject;
+        }
+        if (room) {
+          handler.room = room;
+        }
+      },
+      () => {
+        const handlerClass = this.ACCESSORY_HANDLERS.find(handlerClass => {
+          return accessory ? handlerClass.supportsAccessory(accessory) : handlerClass.supportsSubject(subject!);
+        });
+        return handlerClass ? new handlerClass(this, accessory, subject, room) : null;
+      },
+    );
   }
 }

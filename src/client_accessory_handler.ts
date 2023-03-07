@@ -2,28 +2,15 @@ import { Client } from './client';
 import { AccessoryHandler } from './accessory_handler';
 
 export class ClientAccessoryHandler extends AccessoryHandler {
-  static ACCESSORY_CONTEXT_KEY = Client.ACCESSORY_CONTEXT_KEY;
+  static override SUBJECT_CLASS_NAME = Client.name;
+  static override SUBJECT_CONTEXT_KEY = 'device';
 
-  get subject() {
-    if (this._subject) {
-      return this._subject;
+  protected override subjectFromContext(context) {
+    const client = this.platform.clients.get(context.mac || context.raw.mac);
+    if (client) {
+      return client;
     }
 
-    const context = this.accessory.context[Client.ACCESSORY_CONTEXT_KEY];
-    if (!context) {
-      return null;
-    }
-
-    const mac = context.mac || context.raw.mac;
-    this._subject = this.platform.clients.get(mac) || this.clientFromContext(context);
-    return this._subject;
-  }
-
-  get client(): Client {
-    return this.subject as Client;
-  }
-
-  clientFromContext(context) {
     const raw = context.raw || {
       mac:      context.mac,
       name:     context.name,
@@ -36,6 +23,7 @@ export class ClientAccessoryHandler extends AccessoryHandler {
         os_name:    context.os,
       },
     };
+
     if (!raw.fingerprint) {
       raw.fingerprint = {
         dev_family:       raw.dev_family,
@@ -45,6 +33,41 @@ export class ClientAccessoryHandler extends AccessoryHandler {
         computed_dev_id:  raw.dev_id,
       };
     }
-    return new Client(raw, this.platform);
+
+    return new Client(this.platform, raw);
+  }
+
+  get client(): Client {
+    return this.subject as Client;
+  }
+
+  protected override shouldHaveAccessory(existingAccessory) : boolean {
+    if (!this.room) {
+      return this.config.homeAccessory;
+    }
+
+    if (!this.config.roomAccessory) {
+      return false;
+    }
+
+    if (existingAccessory) {
+      return this.client.connected || !this.client.guest;
+    }
+
+    if (this.config.lazy || this.client.guest) {
+      return this.client.isInRoom(this.room);
+    }
+
+    return true;
+  }
+
+  override get active() {
+    return this.client.isInRoom(this.room);
+  }
+
+  override get subjectContext() {
+    return {
+      raw: this.client.raw,
+    };
   }
 }

@@ -2,13 +2,11 @@ import { ClientFilter } from './client_filter';
 import { UnifiOccupancyPlatform } from './platform';
 
 export class ClientType extends ClientFilter {
-  static ACCESSORY_CONTEXT_KEY = 'clientType';
-
   constructor(
     platform: UnifiOccupancyPlatform,
-    public name,
-    private _label,
-    private clientTest,
+    public readonly name,
+    private readonly _label,
+    private readonly clientTest: ((Client, any) => boolean),
     defaultConfig = {},
   ) {
     super(platform);
@@ -47,28 +45,22 @@ export class ClientType extends ClientFilter {
     );
   }
 
-  get label() : string {
+  override get label() : string {
     return this._label;
   }
 
-  get clientTests() {
+  override get clientTests() {
     return [(client) => this.clientTest(client, client.fingerprint)];
   }
 
-  get config() {
+  override get config() {
     return {
       showAsOwner: this.platform.config.showAsOwner === this.name,
       ...this.platform.config.deviceType[this.name],
     };
   }
 
-  get displayName() : string {
+  override get displayName() : string {
     return this.config.showAsOwner ? 'Anyone' : `Any ${this.label.toLowerCase()}`;
-  }
-
-  get accessoryContext() {
-    return {
-      name: this.name,
-    };
   }
 }

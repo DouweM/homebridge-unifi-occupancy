@@ -1,3 +1,6 @@
+import { PlatformAccessory } from 'homebridge';
+import { Memoize } from 'typescript-memoize';
+
 import { AccessorySubject } from './accessory_subject';
 import { ClientRule } from './client_rule';
 import { ClientType } from './client_type';
@@ -29,18 +32,11 @@ function ownerFromName(name, patterns) {
 }
 
 export class Client extends AccessorySubject {
-  static ACCESSORY_CONTEXT_KEY = 'device';
-
-  private _config;
-  private _fingerprint;
-
   constructor(
-    public raw,
     platform,
+    public readonly raw,
   ) {
     super(platform);
-    this._config = null;
-    this._fingerprint = null;
   }
 
   get mac() : string {
@@ -71,20 +67,17 @@ export class Client extends AccessorySubject {
     return !!this.room;
   }
 
-  isConnectedTo(room: string | null) : boolean {
+  isInRoom(room: string | null) : boolean {
     return room ? this.room === room : this.connected;
   }
 
+  @Memoize()
   get fingerprint() {
-    if (this._fingerprint) {
-      return this._fingerprint;
-    }
-
     const fingerprints = this.platform.deviceFingerprints;
 
     const rawFingerprint = this.raw.fingerprint;
     const devId = rawFingerprint.computed_dev_id;
-    const fingerprint = (devId && fingerprints.dev_ids['' + devId]) || {
+    let fingerprint = (devId && fingerprints.dev_ids['' + devId]) || {
       name:         null,
       family_id:    rawFingerprint.dev_family,
       dev_type_id:  rawFingerprint.dev_cat,
@@ -93,7 +86,7 @@ export class Client extends AccessorySubject {
       os_name_id:   rawFingerprint.os_name,
     };
 
-    this._fingerprint = {
+    fingerprint = {
       id:         devId,
       name:       fingerprint.name,
       familyId:   fingerprint.family_id,
@@ -107,8 +100,8 @@ export class Client extends AccessorySubject {
       osNameId:   fingerprint.os_name_id,
       osName:     fingerprints.os_name_ids['' + fingerprint.os_name_id],
     };
-    this._fingerprint.familyIs = (...values) => values.some(value => [this._fingerprint.type, this._fingerprint.family].includes(value));
-    this._fingerprint.nameContains = (...values) => {
+    fingerprint.familyIs = (...values) => values.some(value => [fingerprint.type, fingerprint.family].includes(value));
+    fingerprint.nameContains = (...values) => {
       return values.some(value =>
         [fingerprint.name, this.name].some(name =>
           name && name.toLowerCase().includes(value.toLowerCase()),
@@ -116,7 +109,7 @@ export class Client extends AccessorySubject {
       );
     };
 
-    return this._fingerprint;
+    return fingerprint;
   }
 
   get type(): ClientType | null {
@@ -129,80 +122,36 @@ export class Client extends AccessorySubject {
     return this.platform.clientRules.reverse().find(rule => rule.matchesClient(this));
   }
 
+  @Memoize()
   get config() {
-    if (this._config) {
-      return this._config;
-    }
-
-    this._config = this.type!.config;
+    let config = this.type!.config;
     if (this.rule) {
-      this._config = {...this._config, ...this.rule.config};
+      config = {...config, ...this.rule.config};
     }
-    return this._config;
+    return config;
   }
 
-  get shouldShowAsOwner() : boolean {
-    return this.config.showAsOwner;
-  }
-
+  @Memoize()
   get owner(): string | null {
     return ownerFromName(this.raw.name, NAME_OWNER_PATTERNS) || ownerFromName(this.hostname, HOSTNAME_OWNER_PATTERNS);
   }
 
   get guest() : boolean {
-    return this.shouldShowAsOwner && !this.owner;
+    return this.config.showAsOwner && !this.owner;
   }
 
-  get displayName() : string {
-    if (this.shouldShowAsOwner) {
+  override get displayName() : string {
+    if (this.config.showAsOwner) {
       return this.owner || `Guest: ${this.name}`;
     }
     return this.name;
   }
 
-  shouldCreateAccessory(room: string | null) : boolean {
-    if (!room) {
-      return this.config.homeAccessory;
-    }
-
-    if (!this.config.roomAccessory) {
-      return false;
-    }
-
-    if (this.config.lazy || this.guest) {
-      return this.room === room;
-    }
-
-    return true;
-  }
-
-  shouldKeepAccessory(room: string | null) : boolean {
-    if (!room) {
-      return this.config.homeAccessory;
-    }
-
-    if (!this.config.roomAccessory) {
-      return false;
-    }
-
-    return this.connected || !this.guest;
-  }
-
-  accessoryUUIDKey(room: string | null) {
+  override accessoryUUIDKey(room: string | null) {
     let uuidKey = this.displayName;
     if (room) {
       uuidKey += ` @ ${room}`;
     }
     return uuidKey;
-  }
-
-  isAccessoryActive(room: string | null) {
-    return this.isConnectedTo(room);
-  }
-
-  get accessoryContext() {
-    return {
-      raw: this.raw,
-    };
   }
 }

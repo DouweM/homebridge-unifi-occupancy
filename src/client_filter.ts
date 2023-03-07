@@ -1,14 +1,10 @@
 import { AccessorySubject } from './accessory_subject';
 import { Client } from './client';
 
-export class ClientFilter extends AccessorySubject {
-  get label() : string {
-    return 'Filter';
-  }
+export abstract class ClientFilter extends AccessorySubject {
+  abstract get label() : string;
 
-  get clientTests() {
-    return [(client) => false];
-  }
+  protected abstract get clientTests(): ((Client) => boolean)[];
 
   matchesClient(client: Client): boolean {
     return this.clientTests.some(test => test(client));
@@ -28,23 +24,15 @@ export class ClientFilter extends AccessorySubject {
     };
   }
 
-  get displayName() : string {
+  override get displayName() : string {
     return `Any ${this.label}`;
   }
 
-  shouldCreateAccessory(room: string | null) : boolean {
-    return room ? this.config.roomCatchallAccessory : this.config.homeCatchallAccessory;
-  }
-
-  accessoryUUIDKey(room: string | null) {
+  override accessoryUUIDKey(room: string | null) {
     let uuidKey = `Any ${this.label}`;
     if (room) {
       uuidKey += ` @ ${room}`;
     }
     return uuidKey;
-  }
-
-  isAccessoryActive(room: string | null) {
-    return this.matchingClients.some(client => client.isConnectedTo(room));
   }
 }

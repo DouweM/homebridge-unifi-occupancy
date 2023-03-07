@@ -1,48 +1,16 @@
-export class AccessorySubject {
-  static ACCESSORY_CONTEXT_KEY = 'accessory';
-
+export abstract class AccessorySubject {
   constructor(
-    protected platform,
+    protected readonly platform,
   ) {
   }
 
-  get displayName() : string {
-    return 'Accessory';
-  }
+  abstract get displayName() : string;
 
-  shouldCreateAccessory(room: string | null) : boolean {
-    return false;
-  }
+  abstract get config();
 
-  shouldKeepAccessory(room: string | null) : boolean {
-    return this.shouldCreateAccessory(room);
-  }
-
-  accessoryUUIDKey(room: string | null) : string {
-    return 'accessory';
-  }
+  protected abstract accessoryUUIDKey(room: string | null) : string;
 
   accessoryUUID(room: string | null) {
     return this.platform.api.hap.uuid.generate(this.accessoryUUIDKey(room));
-  }
-
-  accessoryDisplayName(room: string | null) : string {
-    if (room && this.displayName.startsWith(room)) {
-      return this.displayName;
-    }
-
-    return `${room || 'Anywhere'} ${this.displayName}`;
-  }
-
-  isAccessoryActive(room: string | null) : boolean {
-    return false;
-  }
-
-  get accessoryContextIdentifier() {
-    return this.constructor['ACCESSORY_CONTEXT_KEY'];
-  }
-
-  get accessoryContext() : object {
-    return {};
   }
 }
