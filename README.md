@@ -8,7 +8,7 @@
 
 [Homebridge](https://homebridge.io) plugin that adds HomeKit occupancy sensors for selected<br>
 devices (and people) on your [UniFi](https://www.ui.com/wi-fi) network to the iOS Home app:<br>
-quickly see who's where and automate accordingly.
+**quickly see who's where and automate accordingly**
 
 [![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
 [![Version](https://img.shields.io/npm/v/homebridge-unifi-occupancy?color=green)](https://www.npmjs.com/package/homebridge-unifi-occupancy)
