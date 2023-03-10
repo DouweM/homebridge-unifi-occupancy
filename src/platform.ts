@@ -336,6 +336,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
       this.accessoryHandlers,
       accessory ? accessory.UUID : subject!.accessoryUUID(room!),
       handler => {
+        subject ||= this.clients.get(handler.subject.mac);
         if (subject) {
           handler.subject = subject;
         }

@@ -1,5 +1,4 @@
 import { PlatformAccessory, Service } from 'homebridge';
-import { Memoize, clear as clearMemoize } from 'typescript-memoize';
 import { AccessorySubject } from './accessory_subject';
 import { UnifiOccupancyPlatform } from './platform';
 
@@ -8,6 +7,7 @@ import { AUTHOR_NAME, PLUGIN_NAME } from './settings';
 export abstract class AccessoryHandler {
   static SUBJECT_CLASS_NAME = AccessorySubject.name;
   static SUBJECT_CONTEXT_KEY = 'accessory';
+  static ROOM_CONTEXT_KEY = 'room';
 
   static supportsAccessory(accessory: PlatformAccessory) {
     return !!accessory.context[this.SUBJECT_CONTEXT_KEY];
@@ -20,51 +20,55 @@ export abstract class AccessoryHandler {
   protected service?: Service | null;
 
   private _active = false;
-  private _subject? : AccessorySubject | null;
-  private _room? : string | null;
+  private _buildingAccessory = false;
 
   constructor(
     protected readonly platform: UnifiOccupancyPlatform,
-    protected readonly _accessory?: PlatformAccessory | null,
-    _subject?: AccessorySubject | null,
-    _room?: string | null,
+    protected _accessory?: PlatformAccessory | null,
+    private _subject?: AccessorySubject | null,
+    private _room?: string | null,
   ) {
     if (!_accessory && !_subject) {
       throw new Error('AccessoryHandler needs at least one of accessory and subject.');
     }
 
-    if (_subject) {
-      this.subject = _subject;
-    }
-    if (_room) {
-      this.room = _room;
-    }
     if (this.accessory) {
       this.setupAccessory();
     }
   }
 
-  @Memoize()
   get accessory() : PlatformAccessory | null {
-    if (this._accessory) {
-      return this._accessory;
-    }
-
-    const subject = this._subject;
-    const room = this._room;
-
-    if (!subject || !room) {
+    // Break recursion when this.shouldHaveAccessory, this.displayName, or this.uuid
+    // read this.subject or this.room, which can use this.accessory.
+    if (this._buildingAccessory) {
       return null;
     }
 
-    if (!this.shouldHaveAccessory()) {
-      return null;
+    if (!this._accessory && this._subject) {
+      this._buildingAccessory = true;
+      if (this.shouldHaveAccessory()) {
+        this._accessory = new this.platform.api.platformAccessory(this.displayName, this.uuid);
+      }
+      this._buildingAccessory = false;
     }
 
-    return new this.platform.api.platformAccessory(this.displayName, this.uuid);
+    return this._accessory || null;
+  }
+
+  setAccessoryContext() {
+    if (!this.accessory) {
+      return;
+    }
+
+    this.accessory.context = {
+      [this.subjectContextKey]: this.subjectContext,
+      [AccessoryHandler.ROOM_CONTEXT_KEY]: this.room,
+    };
   }
 
   setupAccessory() {
+    this.setAccessoryContext();
+
     const accessory = this.accessory!;
 
     accessory.getService(this.platform.Service.AccessoryInformation)!
@@ -87,28 +91,24 @@ export abstract class AccessoryHandler {
   }
 
   get subject(): AccessorySubject | null {
-    if (!this._subject) {
-      this._subject = this.subjectFromContext(this.accessory!.context[this.subjectContextKey]) || null;
+    if (!this._subject && this.accessory) {
+      this._subject = this.subjectFromContext(this.accessory.context[this.subjectContextKey]);
     }
-    return this._subject;
+    return this._subject || null;
   }
 
-  set subject(newSubject: AccessorySubject | null) {
-    this._subject = newSubject;
-    if (newSubject && this.accessory) {
-      this.accessory.context[this.subjectContextKey] = this.subjectContext;
-    }
+  set subject(subject: AccessorySubject | null) {
+    this._subject = subject;
+    this.setAccessoryContext();
   }
 
   get room(): string | null {
-    return this._room || this.accessory!.context.room;
+    return this._room || this.accessory?.context[AccessoryHandler.ROOM_CONTEXT_KEY];
   }
 
-  set room(newRoom: string | null) {
-    this._room = newRoom;
-    if (newRoom && this.accessory) {
-      this.accessory.context.room = newRoom;
-    }
+  set room(room: string | null) {
+    this._room = room;
+    this.setAccessoryContext();
   }
 
   get displayName() {
@@ -155,12 +155,12 @@ export abstract class AccessoryHandler {
       return false;
     }
 
-    if (this.room && ![...this.platform.rooms.values()].includes(this.room)) {
+    const uuid = this.uuid;
+    if (uuid !== this.accessory.UUID) {
       return false;
     }
 
-    const uuid = this.uuid;
-    if (uuid !== this.accessory.UUID) {
+    if (this.room && ![...this.platform.rooms.values()].includes(this.room)) {
       return false;
     }
 
