@@ -139,7 +139,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
       password: this.config.unifi.password,
       site: this.config.unifi.site || 'default',
       insecure: [undefined, false].includes(this.config.unifi.secure),
-      unifios: true,
+      unifios: [undefined, true].includes(this.config.unifi.unifios),
       listen: true,
     });
 

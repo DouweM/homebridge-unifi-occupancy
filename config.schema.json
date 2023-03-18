@@ -11,7 +11,6 @@
         "properties": {
           "controller": {
             "title": "Controller URL",
-            "description": "UniFi OS is required.",
             "type": "string",
             "required": true,
             "default": "https://192.168.1.1"
@@ -36,6 +35,12 @@
             "title": "Validate the Controller SSL Certificate",
             "type": "boolean",
             "default": false
+          },
+          "unifios": {
+            "title": "UniFi OS",
+            "description": "Enable this if the controller runs UniFi OS, not just the UniFi Network app by itself.",
+            "type": "boolean",
+            "default": true
           }
         }
       },
