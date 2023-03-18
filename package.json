@@ -1,7 +1,7 @@
 {
   "displayName": "Homebridge UniFi Occupancy",
   "name": "homebridge-unifi-occupancy",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Homebridge plugin that adds HomeKit occupancy sensors for selected devices (and people) on your UniFi network to the iOS Home app: quickly see who's where and automate accordingly",
   "license": "Apache-2.0",
   "repository": {
