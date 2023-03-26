@@ -184,7 +184,9 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
 
     return this.unifi.get(`/v2/api/site/${this.unifi.opts.site}/device`)
       .then(({network_devices}) => {
-        return network_devices.map(({mac, name}) => ({mac, name}));
+        return network_devices
+          .filter(({disabled}) => !disabled)
+          .map(({mac, name}) => ({mac, name}));
       })
       .catch((err) => {
         this.log.error('ERROR: Failed to load network devices', err);
@@ -251,7 +253,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
           const client = new Client(this, raw);
           this.clients.set(client.mac, client);
 
-          const room = this.rooms.get(client.accessPointMac) || client.accessPointMac;
+          const room = this.rooms.get(client.roomMac) || client.roomMac;
           this.clientCurrentRoom.set(client.mac, room);
 
           this.log.debug(

@@ -55,7 +55,7 @@ export class Client extends AccessorySubject {
     return !!this.raw.is_wired;
   }
 
-  get accessPointMac() : string {
+  get roomMac() : string {
     return this.wired ? this.raw.uplink_mac : this.raw.ap_mac;
   }
 
