@@ -164,11 +164,7 @@ export abstract class AccessoryHandler {
       return false;
     }
 
-    if (!this.shouldHaveAccessory(this.accessory)) {
-      return false;
-    }
-
-    return true;
+    return this.shouldHaveAccessory(this.accessory);
   }
 
   abstract get subjectContext() : object;

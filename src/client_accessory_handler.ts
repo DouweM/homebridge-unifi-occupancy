@@ -42,20 +42,31 @@ export class ClientAccessoryHandler extends AccessoryHandler {
   }
 
   protected override shouldHaveAccessory(existingAccessory) : boolean {
-    if (!this.room) {
-      return this.config.homeAccessory;
-    }
+    if (this.room) {
+      if (!this.config.roomAccessory) {
+        return false;
+      }
 
-    if (!this.config.roomAccessory) {
-      return false;
-    }
+      if (existingAccessory) {
+        // Guest sensors disappear one they disconnect
+        if (this.client.guest) {
+          return this.client.connected;
+        }
+      } else {
+        // Guests (and lazy device types) only get sensors for the rooms they're in
+        if (this.config.lazy || this.client.guest) {
+          return this.active;
+        }
+      }
+    } else {
+      if (!this.config.homeAccessory) {
+        return false;
+      }
 
-    if (existingAccessory) {
-      return this.client.connected || !this.client.guest;
-    }
-
-    if (this.config.lazy || this.client.guest) {
-      return this.client.isInRoom(this.room);
+      // Guests don't get an "Anywhere" sensor
+      if (this.client.guest) {
+        return false;
+      }
     }
 
     return true;
