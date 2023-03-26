@@ -63,9 +63,9 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
 
       this.loadDeviceFingerprints()
         .then(() => this.loadRooms())
+        .then(() => this.refresh())
         .then(() => this.listenForConnections())
-        .then(() => this.refreshPeriodically())
-        .then(() => this.loadClients());
+        .then(() => this.refreshPeriodically());
     });
   }
 
@@ -146,33 +146,33 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     this.unifi.on('ctrl.disconnect', () => {
       this.log.debug('UniFi Controller disconnected, reconnecting...');
       this.unifi.connect();
-      this.loadClients();
+      this.refresh();
     });
   }
 
   listenForConnections() {
     this.unifi.on('*.connected', (data) => {
       this.log.debug('Client connected:', data.msg);
-      this.loadClients();
+      this.refresh();
     });
 
     this.unifi.on('*.roam', (data) => {
       this.log.debug('Client roamed:', data.msg);
       if (this.clientCurrentRoom.has(data.user)) {
-        this.loadClients();
+        this.refresh();
       }
     });
 
     this.unifi.on('*.disconnected', (data) => {
       this.log.debug('Client disconnected:', data.msg);
       if (this.clientCurrentRoom.has(data.user)) {
-        this.loadClients();
+        this.refresh();
       }
     });
   }
 
   refreshPeriodically() {
-    setInterval(() => this.loadClients(), this.config.interval * 1000);
+    setInterval(() => this.refresh(), this.config.interval * 1000);
   }
 
   configureAccessory(accessory: PlatformAccessory) {
@@ -237,8 +237,13 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
       });
   }
 
+  refresh() {
+    return this.loadClients()
+      .then(() => this.refreshAccessories());
+  }
+
   loadClients() {
-    this.getClients()
+    return this.getClients()
       .then(clients => {
         this.clientCurrentRoom.clear();
 
@@ -260,17 +265,18 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
             client.type!.name,
           );
         }
-
-        for (const subject of [...this.clients.values(), ...this.clientTypes, ...this.clientRules]) {
-          this.ensureAccessories(subject);
-        }
-      })
-      .then(() => this.updateAccessories());
+      });
   }
 
-  ensureAccessories(subject: AccessorySubject) {
-    this.ensureAccessory(subject, null);
-    this.rooms.forEach(room => this.ensureAccessory(subject, room));
+  refreshAccessories() {
+    this.removeInvalidAccessories();
+
+    for (const subject of [...this.clients.values(), ...this.clientTypes, ...this.clientRules]) {
+      this.ensureAccessory(subject, null);
+      this.rooms.forEach(room => this.ensureAccessory(subject, room));
+    }
+
+    this.updateAccessories();
   }
 
   ensureAccessory(subject: AccessorySubject, room: string | null) {
@@ -293,42 +299,45 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     );
   }
 
-  updateAccessories() {
-    const validAccessories: Map<string, PlatformAccessory> = new Map();
+  removeInvalidAccessories() {
     const invalidAccessories: PlatformAccessory[] = [];
 
     this.accessories.forEach((accessory, uuid) => {
-      if (this.updateAccessory(accessory)) {
-        validAccessories.set(uuid, accessory);
-      } else {
+      const handler = this.ensureAccessoryHandler(accessory);
+      if (!handler?.valid) {
         invalidAccessories.push(accessory);
       }
     });
 
-    this.accessories = validAccessories;
-
     for (const accessory of invalidAccessories) {
-      this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-      this.accessoryHandlers.delete(accessory.UUID);
-      this.log.debug('Removed accessory:', accessory.displayName);
+      this.removeAccessory(accessory);
     }
   }
 
-  updateAccessory(accessory: PlatformAccessory) {
-    const handler = this.ensureAccessoryHandler(accessory);
-    if (!handler?.valid) {
-      return false;
-    }
+  updateAccessories() {
+    this.accessories.forEach((accessory, uuid) => {
+      const handler = this.ensureAccessoryHandler(accessory);
+      this.updateAccessoryHandler(handler);
+    });
+  }
 
+  removeAccessory(accessory: PlatformAccessory) {
+    this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+    this.accessories.delete(accessory.UUID);
+    this.accessoryHandlers.delete(accessory.UUID);
+    this.log.debug('Removed accessory:', accessory.displayName);
+  }
+
+  updateAccessoryHandler(handler: AccessoryHandler) {
     const updated = handler.update();
 
     this.log[updated ? 'info' : 'debug'](
       updated ? 'Updated accessory status:' : 'Accessory status unchanged:',
-      `"${accessory.displayName}"`,
+      `"${handler.displayName}"`,
       handler.active ? 'active' : 'inactive',
     );
 
-    return true;
+    return updated;
   }
 
   private ensureAccessoryHandler(accessory?: PlatformAccessory | null, subject?: AccessorySubject, room?: string | null) {
