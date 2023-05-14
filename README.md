@@ -75,6 +75,7 @@ Alternatively, add `homebridge-unifi-occupancy` to your Homebridge `package.json
           "password": "<password>",
           "site": "default",
           "secure": false,
+          "unifios": true
       },
       "interval": 180,
       "accessPointAliases": [
