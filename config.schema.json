@@ -431,6 +431,7 @@
           ]
         },
         "unifi.secure",
+        "unifi.unifios",
         "interval"
       ]
     },
