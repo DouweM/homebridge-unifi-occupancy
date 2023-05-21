@@ -1,6 +1,9 @@
 import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
 import UnifiEvents from 'unifi-events';
 import url from 'url';
+import Koa from 'koa';
+import Router from 'koa-router';
+import auth from 'koa-basic-auth';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { AccessoryHandler } from './accessory_handler';
@@ -31,6 +34,8 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
 
   public clientTypes: ClientType[] = [];
   public clientRules: ClientRule[] = [];
+  public roomAliases: Map<string, string> = new Map();
+  public avatars: Map<string, string> = new Map();
 
   private unifi: UnifiEvents;
 
@@ -64,8 +69,9 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
       this.loadDeviceFingerprints()
         .then(() => this.loadRooms())
         .then(() => this.refresh())
-        .then(() => this.listenForConnections())
-        .then(() => this.refreshPeriodically());
+        .then(() => this.listenForEvents())
+        .then(() => this.refreshPeriodically())
+        .then(() => this.startWebServer());
     });
   }
 
@@ -76,9 +82,19 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     }
 
     this.config.interval ||= 180;
+
+    this.config.server ||= { enabled: false };
+    this.config.server.port ||= 8582;
+
     this.config.showAsOwner ||= 'smartphone';
     this.config.deviceType ||= {};
     this.config.clientRules ||= [];
+    this.config.accessPointAliases ||= [];
+    this.config.avatars ||= [];
+
+    this.clientRules = this.config.clientRules.map(raw => new ClientRule(this, raw));
+    this.roomAliases = new Map(this.config.accessPointAliases.map(({accessPoint, alias}) => [accessPoint, alias]));
+    this.avatars = new Map(this.config.avatars.map(({owner, identifier}) => [owner, identifier]));
 
     this.clientTypes = [
       new ClientType(
@@ -123,7 +139,6 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
         {lazy: true},
       ),
     ];
-    this.clientRules = this.config.clientRules.map(raw => new ClientRule(this, raw));
 
     return true;
   }
@@ -150,7 +165,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     });
   }
 
-  listenForConnections() {
+  listenForEvents() {
     this.unifi.on('*.connected', (data) => {
       this.log.debug('Client connected:', data.msg);
       this.refresh();
@@ -173,6 +188,33 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
 
   refreshPeriodically() {
     setInterval(() => this.refresh(), this.config.interval * 1000);
+  }
+
+  startWebServer() {
+    const config = this.config.server;
+
+    if (!config.enabled) {
+      return;
+    }
+
+    const app = new Koa();
+    const router = new Router();
+
+    if (config.username && config.password) {
+      app.use(auth({ name: config.username, pass: config.password }));
+    }
+
+    router.get('/clients', async (ctx) => {
+      ctx.body = [...this.clients.values()]
+        .filter(client => client.connected)
+        .map(client => client.asJSON);
+    });
+
+    app.use(router.routes()).use(router.allowedMethods());
+
+    app.listen(config.port, () => {
+      this.log.info('Web Server is running on port', config.port);
+    });
   }
 
   configureAccessory(accessory: PlatformAccessory) {
@@ -198,9 +240,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     return this.getNetworkDevices()
       .then((res) => {
         for (const {mac, name} of res) {
-          const aliasMatch = this.config.accessPointAliases?.find(({accessPoint}) => [mac, name].includes(accessPoint));
-          const alias = aliasMatch ? aliasMatch.alias : name;
-
+          const alias = this.roomAliases.get(mac) || this.roomAliases.get(name) || name;
           this.rooms.set(mac, alias);
 
           this.log.debug('Found room:', alias, `(${name})`);

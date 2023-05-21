@@ -33,6 +33,57 @@ In addition to sensors for whether a specific device is in a specific room, sens
 
 PS. To see the smartphones on your network in your macOS menu bar as well, check out [XBar + UniFi = Who's Home?](https://github.com/DouweM/xbar-whos-home-unifi).
 
+### Web Server
+
+This plugin can expose an API to allow other services on your network to learn what devices (and people) are connected. Currently, the only endpoint is `http://localhost:<port>/clients`.
+
+The Web Server can be enabled in Settings.
+You can also assign an avatar (using a Gravatar email or image URL) to each device owner. The avatar is not shown in the Home app, but its URL is exposed in the API for use by other services.
+
+<details>
+<summary>Example JSON</summary>
+
+```json
+[
+  {
+    "display_name": "Douwe",
+    "type": "smartphone",
+    "room": "Living",
+    "image_url": "https://s.gravatar.com/avatar/2053c25524bfc5fe833861f628896f87",
+    "owner": "Douwe",
+    "name": "Douwe’s iPhone",
+    "hostname": "",
+    "mac": "...",
+    "ip": "192.168.1.214",
+    "connected": true,
+    "wired": false,
+    "wifi_ssid": "...",
+    "room_mac": "...",
+    "fingerprint": {
+      "dev_type_id": "44",
+      "family_id": "9",
+      "name": "Apple iPhone 14 Pro",
+      "os_class_id": "15",
+      "os_name_id": "24",
+      "vendor_id": "320",
+      "id": 4841,
+      "image_url": "https://static.ubnt.com/fingerprint/0/4841_101x101.png",
+      "family": "Smartphone",
+      "type": "Handheld",
+      "type_id": "44",
+      "vendor": "Apple, Inc.",
+      "os_class": "Apple iOS",
+      "os_name": "Apple iOS"
+    },
+    "avatar_url": "https://s.gravatar.com/avatar/2053c25524bfc5fe833861f628896f87",
+    "guest": false,
+    "show_as_owner": true,
+    "raw": {...} # Raw client info from UniFi API
+  }
+]
+```
+</details>
+
 ## Screenshot
 
 <table>
@@ -168,6 +219,22 @@ Alternatively, add `homebridge-unifi-occupancy` to your Homebridge `package.json
           "roomCatchallAccessory": false,
           "homeCatchallAccessory": false,
           "lazy": true
+        }
+      ],
+      "server": {
+        "enabled": false,
+        "port": 8582,
+        "username": "",
+        "password": "",
+      },
+      "avatars": [
+        {
+          "owner": "Douwe",
+          "identifier": "hi@douwe.me"
+        },
+        {
+          "owner": "Gaby",
+          "identifier": "https://em-content.zobj.net/thumbs/240/apple/354/woman_medium-skin-tone_1f469-1f3fd_1f3fd.png"
         }
       ]
     }

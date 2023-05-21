@@ -1,5 +1,5 @@
-import { PlatformAccessory } from 'homebridge';
 import { Memoize } from 'typescript-memoize';
+import gravatar from 'gravatar';
 
 import { AccessorySubject } from './accessory_subject';
 import { ClientRule } from './client_rule';
@@ -67,6 +67,14 @@ export class Client extends AccessorySubject {
     return !!this.room;
   }
 
+  get ip() : string {
+    return this.raw.ip;
+  }
+
+  get wifiSSID() : string {
+    return this.raw.essid;
+  }
+
   isInRoom(room: string | null) : boolean {
     return room ? this.room === room : this.connected;
   }
@@ -77,7 +85,7 @@ export class Client extends AccessorySubject {
 
     const rawFingerprint = this.raw.fingerprint;
     const devId = rawFingerprint.computed_dev_id;
-    let fingerprint = (devId && fingerprints.dev_ids['' + devId]) || {
+    const fingerprint = (devId && fingerprints.dev_ids['' + devId]) || {
       name:         null,
       family_id:    rawFingerprint.dev_family,
       dev_type_id:  rawFingerprint.dev_cat,
@@ -86,20 +94,15 @@ export class Client extends AccessorySubject {
       os_name_id:   rawFingerprint.os_name,
     };
 
-    fingerprint = {
-      id:         devId,
-      name:       fingerprint.name,
-      familyId:   fingerprint.family_id,
-      family:     fingerprints.family_ids['' + fingerprint.family_id],
-      typeId:     fingerprint.dev_type_id,
-      type:       fingerprints.dev_type_ids['' + fingerprint.dev_type_id],
-      vendorId:   fingerprint.vendor_id,
-      vendor:     fingerprints.vendor_ids['' + fingerprint.vendor_id],
-      osClassId:  fingerprint.os_class_id,
-      osClass:    fingerprints.os_class_ids['' + fingerprint.os_class_id],
-      osNameId:   fingerprint.os_name_id,
-      osName:     fingerprints.os_name_ids['' + fingerprint.os_name_id],
-    };
+    fingerprint.id = devId,
+    fingerprint.image_url = `https://static.ubnt.com/fingerprint/0/${devId}_101x101.png`;
+    fingerprint.family = fingerprints.family_ids['' + fingerprint.family_id],
+    fingerprint.type = fingerprints.dev_type_ids['' + fingerprint.dev_type_id],
+    fingerprint.type_id = fingerprint.dev_type_id;
+    fingerprint.vendor = fingerprints.vendor_ids['' + fingerprint.vendor_id],
+    fingerprint.os_class = fingerprints.os_class_ids['' + fingerprint.os_class_id],
+    fingerprint.os_name = fingerprints.os_name_ids['' + fingerprint.os_name_id],
+
     fingerprint.familyIs = (...values) => values.some(value => [fingerprint.type, fingerprint.family].includes(value));
     fingerprint.nameContains = (...values) => {
       return values.some(value =>
@@ -140,6 +143,27 @@ export class Client extends AccessorySubject {
     return this.config.showAsOwner && !this.owner;
   }
 
+  get avatarIdentifier(): string | null {
+    return this.owner && this.platform.avatars.get(this.owner);
+  }
+
+  get avatarURL(): string | null {
+    const identifier = this.avatarIdentifier;
+    if (!identifier) {
+      return null;
+    }
+
+    if (identifier.includes('@')) {
+      return gravatar.url(identifier, {}, true);
+    }
+
+    return identifier;
+  }
+
+  get imageURL(): string | null {
+    return (this.config.showAsOwner && this.avatarURL) || this.fingerprint.image_url;
+  }
+
   override get displayName() : string {
     if (this.config.showAsOwner) {
       return this.owner || `Guest: ${this.name}`;
@@ -153,5 +177,34 @@ export class Client extends AccessorySubject {
       uuidKey += ` @ ${room}`;
     }
     return uuidKey;
+  }
+
+  get asJSON() {
+    return {
+      display_name: this.displayName,
+      type: this.type?.name,
+      room: this.room,
+      image_url: this.imageURL,
+      owner: this.owner,
+
+      name: this.name,
+      hostname: this.hostname,
+
+      mac: this.mac,
+      ip: this.ip,
+      connected: this.connected,
+
+      wired: this.wired,
+      wifi_ssid: this.wifiSSID,
+      room_mac: this.roomMac,
+
+      fingerprint: this.fingerprint,
+
+      avatar_url: this.avatarURL,
+      guest: this.guest,
+      show_as_owner: this.config.showAsOwner,
+
+      raw: this.raw,
+    };
   }
 }
