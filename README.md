@@ -1,5 +1,5 @@
 <p align="center">
-<a href="[v](https://github.com/DouweM/homebridge-unifi-occupancy)"><img src="logo.png" width="532"></a>
+<a href="https://github.com/DouweM/homebridge-unifi-occupancy"><img src="logo.png" width="532"></a>
 </p>
 
 <span align="center">
