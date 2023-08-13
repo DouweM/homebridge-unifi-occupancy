@@ -445,6 +445,45 @@
             }
           }
         }
+      },
+      "webhooks": {
+        "title": "Webhooks",
+        "description": "TODO: Description",
+        "type": "array",
+        "items": {
+          "title": "Webhook",
+          "type": "object",
+          "properties": {
+            "url": {
+              "title": "URL",
+              "type": "string",
+              "required": true
+            },
+            "events": {
+              "title": "Events",
+              "description": "TODO: Description",
+              "type": "object",
+              "properties": {
+                "connect": {
+                  "title": "Connect",
+                  "type": "boolean",
+                  "default": true
+                },
+                "disconnect": {
+                  "title": "Disconnect",
+                  "type": "boolean",
+                  "default": true
+                }
+              }
+            },
+            "onlyShowAsOwner": {
+              "title": "Only Owned Devices",
+              "description": "Only send events for devices that have an owner.",
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
       }
     }
   },
@@ -698,6 +737,25 @@
               "notitle": true,
               "items": ["avatars[].owner", "avatars[].identifier"]
             }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "webhooks",
+      "type": "fieldset",
+      "title": "Webhooks",
+      "expandable": true,
+      "items": [
+        {
+          "key": "webhooks",
+          "type": "array",
+          "notitle": true,
+          "items": [
+            "webhooks[].url",
+            "webhooks[].onlyShowAsOwner",
+            "webhooks[].events.connect",
+            "webhooks[].events.disconnect"
           ]
         }
       ]

@@ -14,6 +14,7 @@ import { ClientType } from './client_type';
 import { AccessorySubject } from './accessory_subject';
 import { ClientRule } from './client_rule';
 import { ClientRuleAccessoryHandler } from './client_rule_accessory_handler';
+import { Webhook } from './webhook';
 
 function ensure(map, uuid, updater, builder) {
   let item = map.get(uuid) || null;
@@ -34,6 +35,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
 
   public clientTypes: ClientType[] = [];
   public clientRules: ClientRule[] = [];
+  public webhooks: Webhook[] = [];
   public roomAliases: Map<string, string> = new Map();
   public avatars: Map<string, string> = new Map();
 
@@ -89,10 +91,12 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
     this.config.showAsOwner ||= 'smartphone';
     this.config.deviceType ||= {};
     this.config.clientRules ||= [];
+    this.config.webhooks ||= [];
     this.config.accessPointAliases ||= [];
     this.config.avatars ||= [];
 
     this.clientRules = this.config.clientRules.map(raw => new ClientRule(this, raw));
+    this.webhooks = this.config.webhooks.map(raw => new Webhook(raw));
     this.roomAliases = new Map(this.config.accessPointAliases.map(({accessPoint, alias}) => [accessPoint, alias]));
     this.avatars = new Map(this.config.avatars.map(({owner, identifier}) => [owner, identifier]));
 
@@ -287,7 +291,11 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   loadClients() {
     return this.getClients()
       .then(clients => {
+        const oldClientMacs = new Set(this.clientCurrentRoom.keys());
+
         this.clientCurrentRoom.clear();
+
+        const triggerWebhooks = this.clients.size > 0;
 
         for (const raw of clients) {
           const client = new Client(this, raw);
@@ -307,7 +315,45 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
             client.type!.name,
           );
         }
+
+        if (triggerWebhooks) {
+          const newClientMacs = new Set(this.clientCurrentRoom.keys());
+          this.triggerWebhooks(oldClientMacs, newClientMacs);
+        }
       });
+  }
+
+  triggerWebhooks(oldClientMacs: Set<string>, newClientMacs: Set<string>) {
+    const disconnectedClientMacs = new Set([...oldClientMacs].filter(mac => !newClientMacs.has(mac)));
+    const connectedClientMacs = new Set([...newClientMacs].filter(mac => !oldClientMacs.has(mac)));
+
+    const trigger = (event: string, client: Client) => {
+      for (const webhook of this.webhooks) {
+        webhook.trigger(event, client).then(success => {
+          if (success === null) {
+            return;
+          }
+
+          if (success) {
+            this.log.debug('Webhook success:', `"${client.name}"`, event, '-', webhook.url);
+          } else {
+            this.log.error('Webhook failed:', `"${client.name}"`, event, '-', webhook.url);
+          }
+        });
+      }
+    };
+
+    for (const mac of disconnectedClientMacs) {
+      const client = this.clients.get(mac)!;
+      this.log.info('Client disconnected:', client.name);
+      trigger('disconnect', client);
+    }
+
+    for (const mac of connectedClientMacs) {
+      const client = this.clients.get(mac)!;
+      this.log.info('Client connected:', client.name);
+      trigger('connect', client);
+    }
   }
 
   refreshAccessories() {
