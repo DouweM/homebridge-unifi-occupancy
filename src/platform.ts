@@ -49,6 +49,7 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
 
   public readonly clients: Map<string, Client> = new Map();
   public readonly clientCurrentRoom: Map<string, string> = new Map();
+  public readonly recentlyDisconnectedClients: Map<string, number> = new Map();
 
   ACCESSORY_HANDLERS = [
     ClientTypeAccessoryHandler,
@@ -324,9 +325,6 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
   }
 
   triggerWebhooks(oldClientMacs: Set<string>, newClientMacs: Set<string>) {
-    const disconnectedClientMacs = new Set([...oldClientMacs].filter(mac => !newClientMacs.has(mac)));
-    const connectedClientMacs = new Set([...newClientMacs].filter(mac => !oldClientMacs.has(mac)));
-
     const trigger = (event: string, client: Client) => {
       for (const webhook of this.webhooks) {
         webhook.trigger(event, client).then(success => {
@@ -334,25 +332,52 @@ export class UnifiOccupancyPlatform implements DynamicPlatformPlugin {
             return;
           }
 
-          if (success) {
-            this.log.debug('Webhook success:', `"${client.name}"`, event, '-', webhook.url);
-          } else {
-            this.log.error('Webhook failed:', `"${client.name}"`, event, '-', webhook.url);
-          }
+          this.log[success ? 'debug' : 'error'](
+            success ? 'Webhook success:' : 'Webhook failed:',
+            `"${client.name}"`,
+            event,
+            '-',
+            webhook.url,
+          );
         });
       }
     };
 
-    for (const mac of disconnectedClientMacs) {
-      const client = this.clients.get(mac)!;
-      this.log.info('Client disconnected:', client.name);
-      trigger('disconnect', client);
-    }
+    const now = Date.now();
+    const disconnectedClientMacs = new Set([...oldClientMacs].filter(mac => !newClientMacs.has(mac)));
+    const connectedClientMacs = new Set([...newClientMacs].filter(mac => !oldClientMacs.has(mac)));
 
     for (const mac of connectedClientMacs) {
       const client = this.clients.get(mac)!;
-      this.log.info('Client connected:', client.name);
-      trigger('connect', client);
+      if (this.recentlyDisconnectedClients.has(mac)) {
+        this.recentlyDisconnectedClients.delete(mac);
+        this.log.debug('Client reconnected:', client.name);
+      } else {
+        this.log.info('Client connected:', client.name);
+        trigger('connect', client);
+      }
+    }
+
+    this.recentlyDisconnectedClients.forEach((timestamp, mac) => {
+      const client = this.clients.get(mac)!;
+
+      const elapsed = (now - timestamp) / 1000;
+      if (elapsed < 30) {
+        this.log.debug(`Client has not reconnected after ${elapsed}s:`, client.name);
+        return;
+      }
+
+      this.recentlyDisconnectedClients.delete(mac);
+
+      this.log.info(`Client disconnected (${elapsed}s ago):`, client.name);
+      trigger('disconnect', client);
+    });
+
+    for (const mac of disconnectedClientMacs) {
+      this.recentlyDisconnectedClients.set(mac, now);
+
+      const client = this.clients.get(mac)!;
+      this.log.debug('Client disconnected (will trigger webhook if not reconnected within 30s):', client.name);
     }
   }
 
